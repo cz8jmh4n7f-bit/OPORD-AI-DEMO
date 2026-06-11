@@ -1,0 +1,38 @@
+# --- Secrets / local env ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+!**/testdata/**/*.key
+kubeconfig
+
+# --- Go ---
+/bin/
+*.test
+*.out
+coverage.*
+vendor/
+
+# --- Node / Next.js ---
+web/node_modules/
+web/.next/
+web/out/
+web/.turbo/
+npm-debug.log*
+yarn-error.log*
+*.log
+
+# --- Editor / OS / AI-assistant local files ---
+.DS_Store
+.idea/
+.vscode/
+*.swp
+.claude/
+.dev/
+
+# --- macOS/iCloud conflict copies ("name 2.ext") ---
+* [0-9].*
+
+# stray duplicate of web/public/logo.png
+/logo.png

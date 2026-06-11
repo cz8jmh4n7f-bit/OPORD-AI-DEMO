@@ -1,0 +1,209 @@
+@import "tailwindcss";
+
+/* Class-based dark mode (toggled on <html class="dark">) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* Surfaces */
+  --background: #f6f8fb;
+  --foreground: #0f1b33;
+  --card: #ffffff;
+  --card-foreground: #0f1b33;
+  --muted: #eef2f7;
+  --muted-foreground: #5b6b85;
+  --border: #e2e8f0;
+  /* Stronger border for form controls - the decorative --border (#e2e8f0, ~1.2:1
+     on white) is below the 3:1 non-text-contrast bar (WCAG 1.4.11) for an input
+     boundary. Navy-tinted to stay on-brand. */
+  --input-border: #8595b1;
+  --ring: #f26a21;
+
+  /* Brand (from logo) */
+  --navy: #16294b;
+  --navy-foreground: #ffffff;
+  --primary: #f26a21;
+  --primary-foreground: #ffffff;
+
+  /* Sidebar */
+  --sidebar: #16294b;
+  --sidebar-foreground: #c6d1e4;
+  --sidebar-muted: #8aa0c4;
+  --sidebar-accent: #21386180;
+  --sidebar-active: #f26a21;
+
+  /* Status */
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --info: #2563eb;
+
+  /* Accessible badge/pill TEXT - darker than the status fill so it reaches
+     WCAG 4.5:1 on the /10 tinted background (the raw status colors fail). */
+  --badge-success: #15803d;
+  --badge-warning: #b45309;
+  --badge-danger: #b91c1c;
+  --badge-info: #1d4ed8;
+  --badge-primary: #c2410c;
+}
+
+.dark {
+  --background: #0a1424;
+  --foreground: #e6edf7;
+  --card: #0f1d33;
+  --card-foreground: #e6edf7;
+  --muted: #15243f;
+  --muted-foreground: #93a4c0;
+  --border: #1d2f4c;
+  --input-border: #45597e;
+  --ring: #f26a21;
+
+  --sidebar: #0c1832;
+  --sidebar-foreground: #c6d1e4;
+  --sidebar-muted: #7e93b8;
+  --sidebar-accent: #18294a;
+
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+
+  /* Lighter badge text on dark surfaces (≥4.5:1 on the /10 tint). */
+  --badge-success: #86efac;
+  --badge-warning: #fcd34d;
+  --badge-danger: #fca5a5;
+  --badge-info: #93c5fd;
+  --badge-primary: #fdba74;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input-border);
+  --color-ring: var(--ring);
+
+  --color-navy: var(--navy);
+  --color-navy-foreground: var(--navy-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-active: var(--sidebar-active);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+
+  --color-badge-success: var(--badge-success);
+  --color-badge-warning: var(--badge-warning);
+  --color-badge-danger: var(--badge-danger);
+  --color-badge-info: var(--badge-info);
+  --color-badge-primary: var(--badge-primary);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  --radius-xl: 0.875rem;
+
+  /* Soft, navy-tinted layered shadows for a calmer, more premium depth than the
+     flat defaults. Used by cards (sm), menus/toasts (lg), dialogs/drawer (xl). */
+  --shadow-xs: 0 1px 2px 0 rgb(15 27 51 / 0.05);
+  --shadow-sm: 0 1px 2px 0 rgb(15 27 51 / 0.05), 0 2px 5px -1px rgb(15 27 51 / 0.06);
+  --shadow-md: 0 2px 6px -1px rgb(15 27 51 / 0.08), 0 6px 16px -3px rgb(15 27 51 / 0.08);
+  --shadow-lg: 0 6px 16px -4px rgb(15 27 51 / 0.10), 0 14px 36px -8px rgb(15 27 51 / 0.14);
+  --shadow-xl: 0 12px 26px -6px rgb(15 27 51 / 0.16), 0 28px 56px -12px rgb(15 27 51 / 0.20);
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* WCAG 2.3.3 - respect prefers-reduced-motion: collapse transitions/animations
+  to near-instant for users who opt out of motion (spinners, pulse dots,
+   hover-lifts, backdrop transitions). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── AI mode "motel sign" (topbar) ────────────────────────────────────────────
+   The "AI" switch reads like a motel vacancy sign: a dim, dead neon tube when
+   off; a glowing orange tube (with a faint buzz) when on. The global
+   prefers-reduced-motion rule above already tames the buzz to a single cycle. */
+@keyframes neon-ai-buzz {
+  0%, 19%, 21%, 24%, 56%, 59%, 100% { opacity: 1; }
+  20%, 23%, 57% { opacity: 0.6; }
+}
+.neon-ai {
+  font-weight: 800;
+  font-size: 0.9rem;
+  line-height: 1;
+  letter-spacing: 0.24em;
+  padding: 0.3rem 0.55rem 0.3rem 0.72rem;
+  border: 1px solid;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease,
+    text-shadow 0.35s ease, background-color 0.35s ease;
+}
+/* OFF - unlit. Light theme: a legible but muted painted sign in daylight.
+   Dark theme: a dim, dead neon tube. */
+.neon-ai-off {
+  color: rgb(100 116 139 / 0.9);
+  border-color: rgb(100 116 139 / 0.4);
+  background-color: transparent;
+}
+.neon-ai-off:hover {
+  color: var(--primary);
+  border-color: rgb(242 106 33 / 0.55);
+}
+.dark .neon-ai-off {
+  color: rgb(148 163 184 / 0.3);
+  border-color: rgb(148 163 184 / 0.16);
+}
+.dark .neon-ai-off:hover {
+  color: rgb(242 106 33 / 0.7);
+  border-color: rgb(242 106 33 / 0.45);
+  text-shadow: 0 0 6px rgb(242 106 33 / 0.45);
+}
+/* ON - lit. Light theme: a solid, bright painted sign - neon doesn't glow in
+   daylight, so the sign reads as filled rather than glowing. */
+.neon-ai-on {
+  color: #ffffff;
+  border-color: #f26a21;
+  background-color: #f26a21;
+  box-shadow: 0 1px 7px rgb(242 106 33 / 0.5);
+}
+/* ON - Dark theme: a glowing neon tube against the night. */
+.dark .neon-ai-on {
+  color: #fff4ea;
+  border-color: rgb(242 106 33 / 0.9);
+  background-color: rgb(242 106 33 / 0.1);
+  text-shadow: 0 0 5px rgb(255 178 120 / 1), 0 0 14px rgb(242 106 33 / 0.95),
+    0 0 26px rgb(242 106 33 / 0.7), 0 0 40px rgb(242 106 33 / 0.4);
+  box-shadow: 0 0 9px rgb(242 106 33 / 0.6), 0 0 22px rgb(242 106 33 / 0.4),
+    inset 0 0 11px rgb(242 106 33 / 0.32);
+  animation: neon-ai-buzz 5s infinite;
+}

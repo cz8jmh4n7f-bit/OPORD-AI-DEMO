@@ -1,0 +1,26 @@
+# Keep the Go build context small. The api/worker/migrate images need only
+# go.mod/go.sum, cmd/, internal/, and migrations/.
+.git
+.dev
+bin/
+/cli
+/opord
+*.log
+logo.png
+modules/
+ansible/
+examples/
+docs/
+web/node_modules
+web/.next
+web/out
+web/.turbo
+**/node_modules
+**/.terraform
+**/*.tfstate
+**/*.tfstate.*
+*.tfplan
+.env
+.env.*
+AGENTS.md
+CLAUDE.md

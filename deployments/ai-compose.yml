@@ -1,0 +1,144 @@
+# OPORD - AI Service Governance: self-contained stack (db + migrate + api + worker + web).
+#
+#   docker compose -f deployments/ai-compose.yml up --build
+#
+# Then open http://localhost:3000 and click the "AI" sign -> "Enter the AI workspace".
+# The catalog is seeded with MockAI, so it works with NO secrets.
+#
+# To govern a REAL provider, store its key in the bundled OpenBao secret store and
+# reference it by path - the key is encrypted at rest, never in OPORD's DB or env:
+#
+#   docker compose -f deployments/ai-compose.yml up -d
+#   docker compose -f deployments/ai-compose.yml exec openbao \
+#     bao kv put secret/opord/ai/openai-main api_key=sk-...
+#   # then in the UI: Add provider (OpenAI) -> secret_ref = opord/ai/openai-main -> Check -> Sync
+#
+# Quick alternative (no secret store) - pass the key as an env var on `up`:
+#   OPENAI_API_KEY=sk-... docker compose -f deployments/ai-compose.yml up -d
+#
+# API: http://localhost:8080  (RBAC on by default - send `Authorization: Bearer opd_demo_admin_key`).
+
+name: opord-ai
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: opord
+      POSTGRES_PASSWORD: opord
+      POSTGRES_DB: opord
+    volumes:
+      - opord_ai_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opord -d opord"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Secret store (OpenBao - the MPL-2.0 Vault fork) so provider API keys are stored
+  # encrypted and read by reference (secret_ref), never kept in OPORD's DB or env.
+  # Dev mode: auto-unsealed, fixed root token, in-memory (re-add keys after a full
+  # `down`). For production point VAULT_ADDR at an external/persistent OpenBao.
+  # Not published to the host; reach it with `docker compose exec openbao bao ...`.
+  openbao:
+    image: openbao/openbao:2.5.4
+    restart: unless-stopped
+    cap_add:
+      - IPC_LOCK
+    environment:
+      BAO_ADDR: "http://127.0.0.1:8200"
+      BAO_TOKEN: "opord-ai-root"
+    command: ["server", "-dev", "-dev-root-token-id=opord-ai-root", "-dev-listen-address=0.0.0.0:8200"]
+    # Healthy only once the KV v2 "secret/" engine is actually listable - so the
+    # very first `bao kv put secret/...` you run right after `up` cannot race a
+    # not-yet-mounted engine and silently no-op (`bao status` passes earlier, while
+    # the engine is still mounting). `api` depends on this, so it waits too.
+    healthcheck:
+      test: ["CMD-SHELL", "bao secrets list 2>/dev/null | grep -q '^secret/'"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 2s
+
+  # One-shot: applies goose migrations (which also seed the MockAI catalog), then exits.
+  migrate:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: migrate
+    command: ["-dir", "/migrations", "postgres", "postgres://opord:opord@db:5432/opord?sslmode=disable", "up"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgres://opord:opord@db:5432/opord?sslmode=disable"
+      OPORD_HTTP_ADDR: ":8080"
+      # RBAC on by default: reads need a viewer key, writes need operator+.
+      # The demo seeds two fixed keys at startup (see README "Sign in"):
+      #   admin  -> opd_demo_admin_key   (full access)
+      #   viewer -> opd_demo_viewer_key  (read-only; writes return 403)
+      # Rotate these (or set both to "false") for any real deployment.
+      OPORD_AUTH_ENABLED: "true"
+      OPORD_SEED_DEMO_USERS: "true"
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Read provider keys from the bundled OpenBao by secret_ref (KV v2 mount "secret").
+      VAULT_ADDR: "http://openbao:8200"
+      VAULT_TOKEN: "opord-ai-root"
+    ports:
+      - "${OPORD_API_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      openbao:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  worker:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgres://opord:opord@db:5432/opord?sslmode=disable"
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    depends_on:
+      api:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ../web
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      # Server-side rendering reaches the API over the compose network; the
+      # browser uses the published http://localhost:8080 (the client default).
+      OPORD_API_URL: "http://api:8080"
+      NODE_ENV: production
+    ports:
+      - "${OPORD_WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  opord_ai_pgdata:
