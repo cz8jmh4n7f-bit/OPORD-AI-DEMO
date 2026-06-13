@@ -1,0 +1,21 @@
+# Standalone VM(s) on Proxmox (provider must be a registered proxmox provider).
+#   opord vm create -f examples/vm-proxmox.yaml
+# On-prem sizing is by cpu/memory_mb/disk_gb; the template is a Proxmox VMID or
+# template name. VMs get sequential IPs starting at ip_start.
+name: db
+environment: dev
+provider: pve-lab
+spec:
+  template: "9000" # Proxmox template VMID
+  count: 1
+  cpu: 2
+  memory_mb: 4096
+  disk_gb: 40
+  ip_start: 10.0.0.50
+  netmask: "255.255.255.0"
+  gateway: 10.0.0.1
+  dns_servers: [1.1.1.1]
+  dns_suffix: local
+  ssh_user: debian
+  ssh_public_key: "ssh-rsa AAAA-proxmox-example"
+  ttl_hours: 8 # auto-destroy after 8 hours (0 = never)

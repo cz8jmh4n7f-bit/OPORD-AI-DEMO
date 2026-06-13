@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 160" width="620" height="160" role="img" aria-label="OPORD - Declarative Infrastructure Operations">
-  <rect width="620" height="160" rx="18" fill="#ffffff"/>
-  <g transform="translate(46,52) scale(2.0)">
-    <path d="M0 1 H12 L24 14 L12 27 H0 L12 14 Z" fill="#17264a"/>
-    <path d="M19 1 H31 L43 14 L31 27 H19 L31 14 Z" fill="#f1672e"/>
-  </g>
-  <text x="200" y="88" font-family="Arial, Helvetica, sans-serif" font-size="58" font-weight="800" fill="#17264a" letter-spacing="2">OPORD</text>
-  <text x="202" y="118" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="600" fill="#5b6b86" letter-spacing="2.5">DECLARATIVE INFRASTRUCTURE OPERATIONS</text>
-</svg>

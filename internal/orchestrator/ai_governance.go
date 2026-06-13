@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/aiproviders"
-	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/aiproviders"
+	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
 )
 
 type AIBudgetInput struct {
@@ -70,15 +70,6 @@ type AIGatewayResponse struct {
 	Body        []byte
 }
 
-func validAIScope(scope string) bool {
-	switch strings.ToLower(strings.TrimSpace(scope)) {
-	case "global", "provider", "owner", "workspace", "tenant":
-		return true
-	default:
-		return false
-	}
-}
-
 func (s *Service) CreateAIBudget(ctx context.Context, in AIBudgetInput) (db.AiBudget, error) {
 	scope := strings.TrimSpace(in.Scope)
 	if scope == "" {
@@ -98,20 +89,6 @@ func (s *Service) CreateAIBudget(ctx context.Context, in AIBudgetInput) (db.AiBu
 	}
 	if in.LimitUSD <= 0 {
 		return db.AiBudget{}, fmt.Errorf("limit_usd must be greater than zero")
-	}
-	if soft < 0 || hard < 0 || soft > 100 || hard > 100 {
-		return db.AiBudget{}, fmt.Errorf("threshold percentages must be between 0 and 100")
-	}
-	if soft > hard {
-		return db.AiBudget{}, fmt.Errorf("soft_threshold_pct (%d) must not exceed hard_threshold_pct (%d)", soft, hard)
-	}
-	if !validAIScope(scope) {
-		return db.AiBudget{}, fmt.Errorf("scope must be one of global, provider, owner, workspace, tenant")
-	}
-	// A non-global scope without a reference would silently apply to everything
-	// (e.g. an "owner" budget with a blank owner). Require the reference.
-	if scope != "global" && strings.TrimSpace(in.ScopeRef) == "" {
-		return db.AiBudget{}, fmt.Errorf("scope %q requires a scope reference (the %s it applies to)", scope, scope)
 	}
 	b, err := s.q.CreateAIBudget(ctx, db.CreateAIBudgetParams{
 		TenantID:         tenantForCreate(ctx),
@@ -193,9 +170,19 @@ func aiBudgetScopeMatches(b db.AiBudget, u db.ListAIUsageRecordsRow) bool {
 	case "provider":
 		return ref == "" || strings.EqualFold(u.ProviderName, ref) || u.ProviderID.String() == ref
 	case "owner":
-		return u.Owner != nil && strings.EqualFold(*u.Owner, ref)
+		if u.Owner != nil && strings.EqualFold(*u.Owner, ref) {
+			return true
+		}
+		return strings.EqualFold(usageRawField(u.Raw, "owner"), ref)
 	case "workspace":
-		return u.Workspace != nil && strings.EqualFold(*u.Workspace, ref)
+		// Prefer the joined instance workspace; for IMPORTED usage (no instance)
+		// fall back to the provider workspace recorded in raw (name or id), so
+		// workspace-scoped budgets count real imported spend.
+		if u.Workspace != nil && strings.EqualFold(*u.Workspace, ref) {
+			return true
+		}
+		return strings.EqualFold(usageRawField(u.Raw, "workspace"), ref) ||
+			strings.EqualFold(usageRawField(u.Raw, "workspace_id"), ref)
 	case "tenant":
 		if ref == "" {
 			return !u.TenantID.Valid
@@ -206,32 +193,34 @@ func aiBudgetScopeMatches(b db.AiBudget, u db.ListAIUsageRecordsRow) bool {
 	}
 }
 
+// usageRawField pulls a string field out of a usage record's raw JSON (used to
+// attribute imported, instance-less usage to a budget scope).
+func usageRawField(raw []byte, key string) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var m map[string]any
+	if json.Unmarshal(raw, &m) != nil {
+		return ""
+	}
+	if v, ok := m[key].(string); ok {
+		return strings.TrimSpace(v)
+	}
+	return ""
+}
+
 func (s *Service) CreateAIQuota(ctx context.Context, in AIQuotaInput) (db.AiQuota, error) {
-	metric := strings.ToLower(strings.TrimSpace(in.Metric))
+	metric := strings.TrimSpace(in.Metric)
 	if metric == "" {
-		metric = "instances"
+		metric = "tokens"
 	}
-	if metric == "cost" {
-		metric = "cost_usd"
-	}
-	switch metric {
-	case "instances", "seats", "tokens", "requests", "cost_usd":
-	default:
-		return db.AiQuota{}, fmt.Errorf("metric must be one of instances, seats, tokens, requests, cost_usd")
-	}
-	period := strings.ToLower(strings.TrimSpace(in.Period))
+	period := strings.TrimSpace(in.Period)
 	if period == "" {
 		period = "monthly"
 	}
-	if period != "daily" && period != "monthly" && period != "yearly" && period != "annual" {
-		return db.AiQuota{}, fmt.Errorf("period must be daily, monthly, or yearly")
-	}
-	enforcement := strings.ToLower(strings.TrimSpace(in.Enforcement))
+	enforcement := strings.TrimSpace(in.Enforcement)
 	if enforcement == "" {
 		enforcement = "warn"
-	}
-	if enforcement != "warn" && enforcement != "block" {
-		return db.AiQuota{}, fmt.Errorf("enforcement must be warn or block")
 	}
 	if in.LimitQuantity <= 0 {
 		return db.AiQuota{}, fmt.Errorf("limit_quantity must be greater than zero")
@@ -293,16 +282,6 @@ func (s *Service) CreateAIAccessPolicy(ctx context.Context, in AIAccessPolicyInp
 	if err != nil {
 		return db.AiAccessPolicy{}, fmt.Errorf("marshaling policy rules: %w", err)
 	}
-	// Guard the deny-all footgun: an ACTIVE deny rule with no selectors matches
-	// every request and blocks ALL AI access. Require at least one selector, an
-	// explicit allow, or a disabled status.
-	if status == "active" {
-		var rule aiPolicyRule
-		if json.Unmarshal(raw, &rule) == nil && rule.isDeny() &&
-			len(rule.Providers) == 0 && len(rule.Categories) == 0 && len(rule.Services) == 0 && len(rule.OwnerDomains) == 0 {
-			return db.AiAccessPolicy{}, fmt.Errorf("this deny rule has no selectors and would block EVERY AI request; add at least one of providers/categories/services/owner_domains, or create it with status=disabled")
-		}
-	}
 	p, err := s.q.CreateAIAccessPolicy(ctx, db.CreateAIAccessPolicyParams{
 		Name:     strings.TrimSpace(in.Name),
 		TenantID: tenantForCreate(ctx),
@@ -334,55 +313,10 @@ func (s *Service) ListAIAccessPolicies(ctx context.Context) ([]db.AiAccessPolicy
 	return out, nil
 }
 
-// DeleteAIBudget removes a budget so a mistaken one can be undone.
-func (s *Service) DeleteAIBudget(ctx context.Context, id uuid.UUID) error {
-	if err := s.q.DeleteAIBudget(ctx, id); err != nil {
-		return fmt.Errorf("deleting ai budget: %w", err)
-	}
-	s.emitAIAudit(ctx, "ai_budget", id, "deleted", "AI budget deleted", nil, "")
-	return nil
-}
-
-// DeleteAIQuota removes a quota.
-func (s *Service) DeleteAIQuota(ctx context.Context, id uuid.UUID) error {
-	if err := s.q.DeleteAIQuota(ctx, id); err != nil {
-		return fmt.Errorf("deleting ai quota: %w", err)
-	}
-	s.emitAIAudit(ctx, "ai_quota", id, "deleted", "AI quota deleted", nil, "")
-	return nil
-}
-
-// DeleteAIAccessPolicy removes a policy - the escape hatch for an accidental
-// deny-all that would otherwise block every AI request with no way to undo it.
-func (s *Service) DeleteAIAccessPolicy(ctx context.Context, id uuid.UUID) error {
-	if err := s.q.DeleteAIAccessPolicy(ctx, id); err != nil {
-		return fmt.Errorf("deleting ai access policy: %w", err)
-	}
-	s.emitAIAudit(ctx, "ai_policy", id, "deleted", "AI access policy deleted", nil, "")
-	return nil
-}
-
-// ExpireAIInstances flips active/suspended instances whose expiry has passed to
-// 'expired' and returns how many. Meant for a periodic reaper so a grant does
-// not stay "active" forever past its expires_at.
-func (s *Service) ExpireAIInstances(ctx context.Context) (int, error) {
-	rows, err := s.q.ExpireAIServiceInstances(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("expiring ai instances: %w", err)
-	}
-	for _, r := range rows {
-		s.emitAIAudit(ctx, "ai_instance", r.ID, "expired", "AI access instance expired", map[string]any{"owner": r.Owner}, "system")
-	}
-	return len(rows), nil
-}
-
 func (s *Service) SyncAIProviderModelsByName(ctx context.Context, name string) error {
 	p, err := s.q.GetAIProviderByName(ctx, name)
 	if err != nil {
 		return fmt.Errorf("ai provider %q not found: %w", name, err)
-	}
-	if tid, scoped := scopeTenant(ctx); scoped && p.TenantID.Valid && !tenantVisible(p.TenantID, tid) {
-		return fmt.Errorf("ai provider %q not found", name)
 	}
 	prov, err := s.aiProvider(p.Type)
 	if err != nil {
@@ -464,9 +398,11 @@ func (s *Service) ImportOpenAICosts(ctx context.Context, in OpenAICostImportInpu
 		return OpenAICostImportResult{}, fmt.Errorf("ai provider %q is %q, not openai", p.Name, p.Type)
 	}
 	creds := s.aiCredentials(ctx, p)
-	key := firstNonEmpty(creds["api_key"], creds["openai_api_key"], creds["token"])
+	// Same two-credential model as Anthropic (ADR-0022): prefer a dedicated
+	// admin_api_key for the org-costs API; fall back to the single-key layout.
+	key := firstNonEmpty(creds["admin_api_key"], creds["api_key"], creds["openai_api_key"], creds["token"])
 	if key == "" {
-		return OpenAICostImportResult{}, fmt.Errorf("openai admin api key missing in secret_ref")
+		return OpenAICostImportResult{}, fmt.Errorf("openai admin api key missing in secret_ref (store it as admin_api_key)")
 	}
 	start, end := in.Start, in.End
 	if start.IsZero() {
@@ -593,9 +529,14 @@ func (s *Service) ImportAnthropicCosts(ctx context.Context, in AnthropicCostImpo
 		return AnthropicCostImportResult{}, fmt.Errorf("ai provider %q is %q, not anthropic", p.Name, p.Type)
 	}
 	creds := s.aiCredentials(ctx, p)
-	key := firstNonEmpty(creds["api_key"], creds["anthropic_api_key"], creds["token"])
+	// Anthropic's two-credential model (ADR-0022): the ADMIN key (sk-ant-admin...)
+	// serves /v1/organizations/* but NOT /v1/models, and vice versa for the
+	// inference key. One secret_ref carries both: `admin_api_key` (preferred here)
+	// for billing/provisioning, `api_key` for check/sync. The fallback keeps a
+	// single-key secret working when it really is an admin key.
+	key := firstNonEmpty(creds["admin_api_key"], creds["api_key"], creds["anthropic_api_key"], creds["token"])
 	if key == "" {
-		return AnthropicCostImportResult{}, fmt.Errorf("anthropic admin api key (sk-ant-admin...) missing in secret_ref")
+		return AnthropicCostImportResult{}, fmt.Errorf("anthropic admin api key missing in secret_ref (store it as admin_api_key, sk-ant-admin...)")
 	}
 	start, end := in.Start, in.End
 	if start.IsZero() {
@@ -611,6 +552,21 @@ func (s *Service) ImportAnthropicCosts(ctx context.Context, in AnthropicCostImpo
 	baseURL := "https://api.anthropic.com"
 	if v, ok := cfg["base_url"].(string); ok && strings.TrimSpace(v) != "" {
 		baseURL = strings.TrimSpace(v)
+	}
+
+	// Resolve workspace ids -> names so imported spend can be attributed to a
+	// workspace-scoped budget (which keys on the human workspace name, not the
+	// Anthropic id). Best-effort: if the admin lookup fails we fall back to the id.
+	wsNames := map[string]string{}
+	if prov, perr := s.aiProvider(p.Type); perr == nil {
+		if admin, ok := prov.(aiproviders.AdminProvisioner); ok {
+			ac := aiproviders.AdminContext{Credentials: creds, Config: cfg}
+			if wss, werr := admin.ListWorkspaces(ctx, ac); werr == nil {
+				for _, w := range wss {
+					wsNames[w.ID] = w.Name
+				}
+			}
+		}
 	}
 
 	result := AnthropicCostImportResult{ProviderName: p.Name, PeriodStart: start, PeriodEnd: end}
@@ -677,6 +633,7 @@ func (s *Service) ImportAnthropicCosts(ctx context.Context, in AnthropicCostImpo
 					"import_key":   importKey,
 					"currency":     item.Currency,
 					"workspace_id": item.WorkspaceID,
+					"workspace":    wsNames[item.WorkspaceID], // human name for budget attribution
 					"description":  item.Description,
 					"model":        item.Model,
 					"cost_type":    item.CostType,

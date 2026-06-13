@@ -14,13 +14,13 @@ export default async function AIPoliciesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="AI Policies" description="Enforced access rules: a matching deny blocks a request (with a reason); a matching allow whitelists it.">
+      <PageHeader title="AI Policies" description="Request questionnaire and model-access policy records for AI governance.">
         <AddAIGovernanceButton kind="policy" />
       </PageHeader>
 
       {policies.length === 0 ? (
         <Card>
-          <EmptyState icon={ShieldCheck} title="No AI policies" description="Create a deny rule (by provider / category / service / owner domain) to block matching AI requests." />
+          <EmptyState icon={ShieldCheck} title="No AI policies" description="Create a policy to document approved models, expiry limits, and justification requirements." />
         </Card>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">

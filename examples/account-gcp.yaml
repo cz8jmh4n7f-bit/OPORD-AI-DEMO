@@ -1,0 +1,42 @@
+# OPORD GCP managed project (ADR-0011).
+# A single account create provisions an isolated GCP project: a per-CSA folder,
+# the project (auto_create_network=false), required APIs, KMS/CMEK + log sink,
+# a secure VPC (/22 from IPAM) with a ZTNA firewall, project org policies, and
+# least-privilege IAM for an existing owner.
+#
+#   opord account create -f examples/account-gcp.yaml --provider gcp-dev --dry-run
+#
+# The organization folder + billing account come from the PROVIDER CONFIG
+# (OpenBao at the provider's SecretRef), not this spec:
+#   gcp_folder_parent: "folders/NNN"   (or "organizations/NNN")
+#   gcp_billing_account: "XXXXXX-XXXXXX-XXXXXX"
+#   gcp_domain: "example.com"          (to turn a bare owner into an IAM member)
+#   gcp_allowed_member_domains: ["CUSTOMER_ID"]   (optional org-policy)
+
+name: acme-dev
+provider: gcp-dev
+spec:
+  gcp_mode: create          # create a new project (vs adopt an existing one)
+  csa_id: acme              # to project id "acme-dev"; drives naming
+  cloud_name: dev           # prod / stage / dev
+  owner: alice              # existing user (becomes user:alice@<gcp_domain>)
+  role: Manager             # Admin / Manager / ReadOnly to non-primitive roles
+  create_vpc: true          # secure VPC + 3 /24 + ZTNA firewall
+  vpc_region: europe-west1
+  # vpc_cidr: ""            # empty to OPORD IPAM allocates a /22 from the OpenBao pool
+  gcp_allowed_locations:    # org-policy gcp.resourceLocations
+    - "in:europe-locations"
+  gcp_allow_inbound_cidrs:  # ZTNA firewall trusted sources (set real org ranges!)
+    - "10.0.0.0/8"
+  # skip:                   # per-layer toggles for re-runs
+  #   gcp_security: false
+  #   gcp_org_policy: false
+
+# Grant-at-creation (optional): once the project reaches ready, OPORD grants this
+# team an IAM role on it (reusing the `project` access primitive) - no separate
+# grant step or console self-grant. For Azure use a role like "Reader"/"Contributor";
+# for AWS a managed-policy ARN.
+grant_team:
+  - alice@example.com
+  - bob@example.com
+grant_role: roles/viewer

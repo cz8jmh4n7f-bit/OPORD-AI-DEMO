@@ -3,8 +3,8 @@ package api
 import (
 	"testing"
 
-	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
 	"github.com/google/uuid"
+	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
 )
 
 func TestAIProviderDTORedactsSensitiveConfig(t *testing.T) {

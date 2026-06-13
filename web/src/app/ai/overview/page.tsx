@@ -25,7 +25,6 @@ import {
   fetchAIQuotas,
   fetchAIRequests,
   fetchAIServices,
-  fetchAIUsage,
 } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 
@@ -43,7 +42,7 @@ function auditTone(action: string): BadgeVariant {
 }
 
 export default async function AIOverviewPage() {
-  const [providers, services, instances, requests, budgets, quotas, policies, audit, usage] = await Promise.all([
+  const [providers, services, instances, requests, budgets, quotas, policies, audit] = await Promise.all([
     fetchAIProviders(),
     fetchAIServices(),
     fetchAIInstances(),
@@ -52,7 +51,6 @@ export default async function AIOverviewPage() {
     fetchAIQuotas(),
     fetchAIPolicies(),
     fetchAIAudit(),
-    fetchAIUsage(),
   ]);
 
   const activeAccess = instances.filter((i) => i.status === "active").length;
@@ -60,9 +58,7 @@ export default async function AIOverviewPage() {
   const activePolicies = policies.filter((p) => p.status === "active").length;
   const blockingQuotas = quotas.filter((q) => q.enforcement === "block").length;
   const budgetsAtRisk = budgets.filter((b) => b.status === "warning" || b.status === "hard_limit").length;
-  // True spend = sum of usage records (summing per-budget actuals double-counts
-  // when budget scopes overlap, e.g. a global + a provider budget over one cost).
-  const spend = usage.reduce((sum, u) => sum + (u.costUsd || 0), 0);
+  const spend = budgets.reduce((sum, b) => sum + (b.actualUsd || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -131,7 +127,7 @@ export default async function AIOverviewPage() {
             icon={ChartNoAxesCombined}
             label="Tracked spend"
             value={`$${spend.toFixed(2)}`}
-            hint="From usage records"
+            hint="Across budget scopes"
           />
         </div>
       </div>

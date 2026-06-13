@@ -90,7 +90,7 @@ order by i.created_at desc;
 -- name: RevokeAIServiceInstance :one
 update ai_service_instances
 set status = 'revoked', revoked_at = now(), updated_at = now()
-where id = $1 and status in ('active', 'suspended')
+where id = $1
 returning *;
 
 -- name: UpdateAIServiceInstanceStatus :one
@@ -187,26 +187,8 @@ join ai_services s on s.id = i.service_id
 join ai_providers p on p.id = s.provider_id
 where i.status in ('active', 'suspended')
   and i.expires_at is not null
-  and i.expires_at >= now()
   and i.expires_at <= now() + ($1::int * interval '1 day')
 order by i.expires_at asc;
-
--- name: DeleteAIBudget :exec
-delete from ai_budgets where id = $1;
-
--- name: DeleteAIQuota :exec
-delete from ai_quotas where id = $1;
-
--- name: DeleteAIAccessPolicy :exec
-delete from ai_access_policies where id = $1;
-
--- name: ExpireAIServiceInstances :many
-update ai_service_instances
-set status = 'expired', updated_at = now()
-where status in ('active', 'suspended')
-  and expires_at is not null
-  and expires_at < now()
-returning *;
 
 -- name: CreateAIAuditEvent :one
 insert into ai_audit_events (actor, tenant_id, subject_type, subject_id, action, message, fields)

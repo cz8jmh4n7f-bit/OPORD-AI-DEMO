@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	credspkg "github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/creds"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/models"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/providers"
-	"github.com/google/uuid"
 )
 
 // CreateAccountInput is the request to provision a member AWS account.

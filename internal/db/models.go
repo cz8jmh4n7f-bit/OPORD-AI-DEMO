@@ -191,6 +191,32 @@ type Job struct {
 	CreatedAt  time.Time          `json:"created_at"`
 }
 
+type McpGrant struct {
+	ID        uuid.UUID          `json:"id"`
+	ServerID  uuid.UUID          `json:"server_id"`
+	Owner     string             `json:"owner"`
+	Status    string             `json:"status"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	GrantedBy string             `json:"granted_by"`
+	TenantID  pgtype.UUID        `json:"tenant_id"`
+	CreatedAt time.Time          `json:"created_at"`
+	RevokedAt pgtype.Timestamptz `json:"revoked_at"`
+}
+
+type McpServer struct {
+	ID           uuid.UUID   `json:"id"`
+	Name         string      `json:"name"`
+	Transport    string      `json:"transport"`
+	Endpoint     string      `json:"endpoint"`
+	Description  string      `json:"description"`
+	RiskTier     string      `json:"risk_tier"`
+	AllowedTools []byte      `json:"allowed_tools"`
+	Status       string      `json:"status"`
+	TenantID     pgtype.UUID `json:"tenant_id"`
+	CreatedAt    time.Time   `json:"created_at"`
+	UpdatedAt    time.Time   `json:"updated_at"`
+}
+
 type Node struct {
 	ID        uuid.UUID `json:"id"`
 	ClusterID uuid.UUID `json:"cluster_id"`

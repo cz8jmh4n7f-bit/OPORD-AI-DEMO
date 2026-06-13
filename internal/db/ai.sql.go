@@ -395,39 +395,12 @@ func (q *Queries) CreateAIUsageRecord(ctx context.Context, arg CreateAIUsageReco
 	return i, err
 }
 
-const deleteAIAccessPolicy = `-- name: DeleteAIAccessPolicy :exec
-delete from ai_access_policies where id = $1
-`
-
-func (q *Queries) DeleteAIAccessPolicy(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, deleteAIAccessPolicy, id)
-	return err
-}
-
-const deleteAIBudget = `-- name: DeleteAIBudget :exec
-delete from ai_budgets where id = $1
-`
-
-func (q *Queries) DeleteAIBudget(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, deleteAIBudget, id)
-	return err
-}
-
 const deleteAIProvider = `-- name: DeleteAIProvider :exec
 delete from ai_providers where id = $1
 `
 
 func (q *Queries) DeleteAIProvider(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteAIProvider, id)
-	return err
-}
-
-const deleteAIQuota = `-- name: DeleteAIQuota :exec
-delete from ai_quotas where id = $1
-`
-
-func (q *Queries) DeleteAIQuota(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, deleteAIQuota, id)
 	return err
 }
 
@@ -439,51 +412,6 @@ where service_id in (select id from ai_services where provider_id = $1)
 func (q *Queries) DeleteAIServiceInstancesByProvider(ctx context.Context, providerID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteAIServiceInstancesByProvider, providerID)
 	return err
-}
-
-const expireAIServiceInstances = `-- name: ExpireAIServiceInstances :many
-update ai_service_instances
-set status = 'expired', updated_at = now()
-where status in ('active', 'suspended')
-  and expires_at is not null
-  and expires_at < now()
-returning id, service_id, request_id, provider_access_id, owner, tenant_id, workspace, status, spec, observed, provisioned_at, expires_at, revoked_at, created_at, updated_at
-`
-
-func (q *Queries) ExpireAIServiceInstances(ctx context.Context) ([]AiServiceInstance, error) {
-	rows, err := q.db.Query(ctx, expireAIServiceInstances)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []AiServiceInstance{}
-	for rows.Next() {
-		var i AiServiceInstance
-		if err := rows.Scan(
-			&i.ID,
-			&i.ServiceID,
-			&i.RequestID,
-			&i.ProviderAccessID,
-			&i.Owner,
-			&i.TenantID,
-			&i.Workspace,
-			&i.Status,
-			&i.Spec,
-			&i.Observed,
-			&i.ProvisionedAt,
-			&i.ExpiresAt,
-			&i.RevokedAt,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const findAIUsageRecordByImportKey = `-- name: FindAIUsageRecordByImportKey :one
@@ -853,7 +781,6 @@ join ai_services s on s.id = i.service_id
 join ai_providers p on p.id = s.provider_id
 where i.status in ('active', 'suspended')
   and i.expires_at is not null
-  and i.expires_at >= now()
   and i.expires_at <= now() + ($1::int * interval '1 day')
 order by i.expires_at asc
 `
@@ -1282,7 +1209,7 @@ func (q *Queries) ListAIUsageRecords(ctx context.Context) ([]ListAIUsageRecordsR
 const revokeAIServiceInstance = `-- name: RevokeAIServiceInstance :one
 update ai_service_instances
 set status = 'revoked', revoked_at = now(), updated_at = now()
-where id = $1 and status in ('active', 'suspended')
+where id = $1
 returning id, service_id, request_id, provider_access_id, owner, tenant_id, workspace, status, spec, observed, provisioned_at, expires_at, revoked_at, created_at, updated_at
 `
 

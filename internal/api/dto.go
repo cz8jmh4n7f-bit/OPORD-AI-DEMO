@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/models"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/orchestrator"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // DTOs use camelCase JSON to match the web client's TypeScript types

@@ -6,6 +6,7 @@
 *.key
 !**/testdata/**/*.key
 kubeconfig
+artifacts/
 
 # --- Go ---
 /bin/
@@ -21,18 +22,43 @@ web/out/
 web/.turbo/
 npm-debug.log*
 yarn-error.log*
-*.log
 
-# --- Editor / OS / AI-assistant local files ---
+# --- OpenTofu / Terraform ---
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan-*
+crash.log
+override.tf
+override.tf.json
+.terraform.lock.hcl
+
+# --- Ansible ---
+*.retry
+ansible/inventory/*-hosts.ini
+ansible/inventory/hosts.ini
+/tmp/ansible_facts_cache
+
+# --- Editor / OS ---
 .DS_Store
 .idea/
 .vscode/
 *.swp
+
+# --- Local working files / build artifacts (not for commit) ---
+/cli
+/opord
+modules/aws-lambda/*.zip
+modules/*/.build/
+azure-create-test.yaml
 .claude/
 .dev/
 
+# --- Docs & AI-context files (untracked for now; stay on disk + in git history) ---
+docs/
+CLAUDE.md
+AGENTS.md
+
 # --- macOS/iCloud conflict copies ("name 2.ext") ---
 * [0-9].*
-
-# stray duplicate of web/public/logo.png
-/logo.png

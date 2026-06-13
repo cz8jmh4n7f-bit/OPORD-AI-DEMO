@@ -6,7 +6,9 @@
 # The catalog is seeded with MockAI, so it works with NO secrets.
 #
 # To govern a REAL provider, store its key in the bundled OpenBao secret store and
-# reference it by path - the key is encrypted at rest, never in OPORD's DB or env:
+# reference it by path - the key is encrypted at rest, never in OPORD's DB or env.
+# OpenBao is persistent (survives restarts; only `down -v` wipes it), auto-unsealed,
+# and has its web UI on http://localhost:8200/ui (token: opord-ai-root). Via CLI:
 #
 #   docker compose -f deployments/ai-compose.yml up -d
 #   docker compose -f deployments/ai-compose.yml exec openbao \
@@ -16,7 +18,7 @@
 # Quick alternative (no secret store) - pass the key as an env var on `up`:
 #   OPENAI_API_KEY=sk-... docker compose -f deployments/ai-compose.yml up -d
 #
-# API: http://localhost:8080  (RBAC on by default - send `Authorization: Bearer opd_demo_admin_key`).
+# API: http://localhost:8080  (auth disabled in this demo profile).
 
 name: opord-ai
 
@@ -38,9 +40,11 @@ services:
 
   # Secret store (OpenBao - the MPL-2.0 Vault fork) so provider API keys are stored
   # encrypted and read by reference (secret_ref), never kept in OPORD's DB or env.
-  # Dev mode: auto-unsealed, fixed root token, in-memory (re-add keys after a full
-  # `down`). For production point VAULT_ADDR at an external/persistent OpenBao.
-  # Not published to the host; reach it with `docker compose exec openbao bao ...`.
+  # PERSISTENT file storage (secrets survive restarts and `down`; only `down -v`
+  # wipes them) with the openbao-init sidecar auto-initializing and auto-unsealing,
+  # so no manual unseal is ever needed. Published on 127.0.0.1:8200 - web UI at
+  # http://localhost:8200/ui (token: opord-ai-root), or
+  # `docker compose exec openbao bao kv ...` from the CLI.
   openbao:
     image: openbao/openbao:2.5.4
     restart: unless-stopped
@@ -49,17 +53,38 @@ services:
     environment:
       BAO_ADDR: "http://127.0.0.1:8200"
       BAO_TOKEN: "opord-ai-root"
-    command: ["server", "-dev", "-dev-root-token-id=opord-ai-root", "-dev-listen-address=0.0.0.0:8200"]
-    # Healthy only once the KV v2 "secret/" engine is actually listable - so the
-    # very first `bao kv put secret/...` you run right after `up` cannot race a
-    # not-yet-mounted engine and silently no-op (`bao status` passes earlier, while
-    # the engine is still mounting). `api` depends on this, so it waits too.
+    command: ["server", "-config=/openbao/config/config.hcl"]
+    volumes:
+      - opord_ai_openbao:/openbao/file
+      - ./openbao/ai/config.hcl:/openbao/config/config.hcl:ro
+    ports:
+      - "127.0.0.1:8200:8200"
+    # Healthy only once unsealed AND the KV v2 "secret/" engine is listable with
+    # the service token - so the very first `bao kv put secret/...` right after
+    # `up` cannot race init/unseal/mount. `api` depends on this, so it waits too.
     healthcheck:
       test: ["CMD-SHELL", "bao secrets list 2>/dev/null | grep -q '^secret/'"]
       interval: 5s
       timeout: 5s
-      retries: 12
-      start_period: 2s
+      retries: 24
+      start_period: 3s
+
+  # Auto-init / auto-unseal daemon: first boot initializes (1 share) and stores
+  # the unseal key in the data volume (.init.txt - fine for a LOCAL test stack);
+  # every later boot just unseals. Also ensures the secret/ KV v2 mount and the
+  # fixed opord-ai-root service token the api/worker use.
+  openbao-init:
+    image: openbao/openbao:2.5.4
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/openbao-init.sh"]
+    environment:
+      BAO_ADDR: "http://openbao:8200"
+    volumes:
+      - opord_ai_openbao:/openbao/file
+      - ./openbao/ai/init.sh:/openbao-init.sh:ro
+    depends_on:
+      openbao:
+        condition: service_started
 
   # One-shot: applies goose migrations (which also seed the MockAI catalog), then exits.
   migrate:
@@ -82,13 +107,7 @@ services:
     environment:
       DATABASE_URL: "postgres://opord:opord@db:5432/opord?sslmode=disable"
       OPORD_HTTP_ADDR: ":8080"
-      # RBAC on by default: reads need a viewer key, writes need operator+.
-      # The demo seeds two fixed keys at startup (see README "Sign in"):
-      #   admin  -> opd_demo_admin_key   (full access)
-      #   viewer -> opd_demo_viewer_key  (read-only; writes return 403)
-      # Rotate these (or set both to "false") for any real deployment.
-      OPORD_AUTH_ENABLED: "true"
-      OPORD_SEED_DEMO_USERS: "true"
+      OPORD_AUTH_ENABLED: "false"
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       # Read provider keys from the bundled OpenBao by secret_ref (KV v2 mount "secret").
@@ -140,5 +159,31 @@ services:
       api:
         condition: service_healthy
 
+  # LiteLLM proxy - an OPTIONAL, ADDITIONAL integration (one way to wire a data
+  # plane; OPORD governs OpenAI/Anthropic directly too). Behind the "litellm"
+  # compose profile so it does NOT start by default:
+  #   docker compose -f deployments/ai-compose.yml --profile litellm up -d
+  # When enabled, OPORD (the control plane) mints scoped virtual keys here on
+  # approval and revokes them; LiteLLM enforces budget/model limits at runtime.
+  # The bundled config registers a mock model so a key can be minted with no real
+  # upstream creds (swap in real models via deployments/litellm/config.yaml).
+  litellm:
+    image: ghcr.io/berriai/litellm:main-stable
+    profiles: ["litellm"]
+    restart: unless-stopped
+    environment:
+      LITELLM_MASTER_KEY: "sk-opord-litellm-master"
+      DATABASE_URL: "postgres://opord:opord@db:5432/litellm?sslmode=disable"
+      STORE_MODEL_IN_DB: "true"
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    volumes:
+      - ./litellm/config.yaml:/app/config.yaml:ro
+    ports:
+      - "127.0.0.1:4000:4000"
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   opord_ai_pgdata:
+  opord_ai_openbao:

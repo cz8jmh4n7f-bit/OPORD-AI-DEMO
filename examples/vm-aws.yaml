@@ -1,0 +1,16 @@
+# Standalone EC2 VM on AWS (provider must be a registered aws provider).
+#   opord vm create -f examples/vm-aws.yaml
+# Cloud sizing is by instance_type (cpu/memory_mb are ignored); the template is
+# the AMI ID. ttl_hours auto-destroys the VM so test instances don't linger and
+# accrue cost.
+name: web
+environment: dev
+provider: aws-eu
+spec:
+  template: ami-0abc123def456 # AMI to launch (region-specific)
+  instance_type: t3.micro
+  count: 1
+  disk_gb: 20
+  public_ip: false
+  ttl_hours: 4 # auto-destroy after 4 hours (0 = never)
+  ssh_user: ec2-user

@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	credspkg "github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/creds"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/models"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/providers"
-	"github.com/google/uuid"
 )
 
 // checkTimeout bounds a single connection probe so a hung backend can't wedge

@@ -10,6 +10,7 @@ import {
   Tags,
   UserCheck,
 } from "lucide-react";
+import { GetStarted } from "@/components/get-started";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +32,8 @@ import {
   fetchCaches,
   fetchTables,
   fetchFunctions,
+  fetchProviders,
+  fetchAIProviders,
 } from "@/lib/api";
 import { timeAgo } from "@/lib/utils";
 
@@ -46,7 +49,7 @@ function usd(n: number): string {
 }
 
 export default async function DashboardPage() {
-  const [clusters, vms, stacks, envs, requests, cost, jobs, accounts, databases, s3buckets, secrets, queues, caches, tables, functions] =
+  const [clusters, vms, stacks, envs, requests, cost, jobs, accounts, databases, s3buckets, secrets, queues, caches, tables, functions, providers, aiProviders] =
     await Promise.all([
       fetchClusters(),
       fetchVMs(),
@@ -63,6 +66,8 @@ export default async function DashboardPage() {
       fetchCaches(),
       fetchTables(),
       fetchFunctions(),
+      fetchProviders(),
+      fetchAIProviders(),
     ]);
 
   const resourceInventory = [
@@ -104,6 +109,11 @@ export default async function DashboardPage() {
   const topProjects = Object.entries(projectSpend)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
+  // First-run onboarding: show the checklist until something real exists. The
+  // seeded MockAI provider doesn't count as a "connected" AI provider.
+  const hasInfraProvider = providers.length > 0;
+  const hasAIProvider = aiProviders.some((p) => p.type !== "mock_ai");
+  const firstRun = resourceInventory.length === 0 && requests.length === 0;
 
   return (
     <div className="space-y-6">
@@ -118,6 +128,14 @@ export default async function DashboardPage() {
           Request service
         </Link>
       </PageHeader>
+
+      {firstRun && (
+        <GetStarted
+          hasInfraProvider={hasInfraProvider}
+          hasAIProvider={hasAIProvider}
+          hasAnyRequest={requests.length > 0}
+        />
+      )}
 
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <StatCard icon={ClipboardList} label="Open requests" value={openRequests.length} hint={`${pendingApprovals.length} awaiting approval`} />

@@ -1,0 +1,17 @@
+---
+# OPORD Phase 2 orchestrator: full Kubernetes bootstrap, in order.
+# Run after a provider has provisioned the VMs and emitted the inventory.
+- name: Prepare nodes
+  import_playbook: base.yml
+
+- name: Initialize first control plane
+  import_playbook: bootstrap.yml
+
+- name: Join additional control planes
+  import_playbook: join-control-planes.yml
+
+- name: Join workers
+  import_playbook: join-workers.yml
+
+- name: Install CNI
+  import_playbook: install-cilium.yml

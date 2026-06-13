@@ -267,5 +267,53 @@ func BuiltinChecks() []Check {
 				return StatusPass, "k8s " + v + " supported"
 			},
 		},
+		// --- AI access governance (kind "ai-access") ---
+		{
+			ID:          "ai-access-has-owner",
+			Title:       "AI access grant has an owner",
+			Description: "Every AI access grant must name an owner so it can be attributed, reviewed, and renewed.",
+			Category:    CategoryTagging,
+			Severity:    SeverityWarning,
+			Kinds:       []string{"ai-access"},
+			Remediation: "Set an owner on the AI access request.",
+			Eval: func(s Subject) (Status, string) {
+				if strings.TrimSpace(mapStr(s.Observed, "owner")) != "" {
+					return StatusPass, "owner set"
+				}
+				return StatusFail, "AI access has no owner"
+			},
+		},
+		{
+			ID:          "ai-access-has-expiry",
+			Title:       "AI access grant has an expiry",
+			Description: "Standing AI access should expire so it is re-justified periodically (SOC2/ISO access review).",
+			Category:    CategoryGovernance,
+			Severity:    SeverityWarning,
+			Kinds:       []string{"ai-access"},
+			Remediation: "Set expires_at on the AI access request; OPORD auto-revokes on expiry.",
+			Eval: func(s Subject) (Status, string) {
+				if _, present := mapBool(s.Observed, "has_expiry"); present {
+					if v, _ := mapBool(s.Observed, "has_expiry"); v {
+						return StatusPass, "expiry set"
+					}
+				}
+				return StatusFail, "AI access never expires (no expiry date)"
+			},
+		},
+		{
+			ID:          "ai-access-not-overdue",
+			Title:       "Active AI access is not past its expiry",
+			Description: "An active grant past its expiry means the expiry reaper hasn't revoked it - access outliving its approved window.",
+			Category:    CategoryGovernance,
+			Severity:    SeverityCritical,
+			Kinds:       []string{"ai-access"},
+			Remediation: "Run the AI expiry reaper (or revoke the grant) - access should not outlive its expiry.",
+			Eval: func(s Subject) (Status, string) {
+				if overdue, present := mapBool(s.Observed, "overdue"); present && overdue {
+					return StatusFail, "active AI access is past its expiry"
+				}
+				return StatusPass, "within approved window"
+			},
+		},
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/models"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/orchestrator"
 )
@@ -79,7 +80,7 @@ func (s *Server) listCaches(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getCache(w http.ResponseWriter, r *http.Request) {
-	name := pathParam(r, "name")
+	name := chi.URLParam(r, "name")
 	env := r.URL.Query().Get("env")
 	if env == "" {
 		env = "dev"
@@ -129,7 +130,7 @@ func (s *Server) createCache(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) destroyCache(w http.ResponseWriter, r *http.Request) {
-	name := pathParam(r, "name")
+	name := chi.URLParam(r, "name")
 	env := r.URL.Query().Get("env")
 	if env == "" {
 		env = "dev"

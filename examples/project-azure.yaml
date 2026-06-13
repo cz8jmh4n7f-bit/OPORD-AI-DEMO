@@ -1,0 +1,13 @@
+# Access-vending project on Azure (kind=project): an Entra security group granted
+# an Azure RBAC role at a subscription / resource-group scope, with members.
+# Day-2 "add/remove member" = re-apply with an updated user_names list.
+#   opord project create -f examples/project-azure.yaml [--dry-run]
+name: team-alpha
+provider: Azure
+environment: dev
+spec:
+  role_name: Reader            # built-in Azure RBAC role
+  # subscription_id: ""        # optional - defaults to the provider's subscription
+  # resource_group: ""         # optional - narrows scope to one RG
+  user_names:                  # existing Entra UPNs/emails
+    - alice@contoso.com

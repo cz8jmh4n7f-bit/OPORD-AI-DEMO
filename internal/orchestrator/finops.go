@@ -158,9 +158,9 @@ type FinOpsReport struct {
 // dynamic-cred lag) - the tile still renders (greyed) so the row stays stable
 // instead of the cloud vanishing.
 type FinOpsCloud struct {
-	Name      string  `json:"name"` // provider name (OPORD-Azure)
-	Type      string  `json:"type"` // aws / azure / gcp
-	USD       float64 `json:"usd"`  // window total (0 when unavailable)
+	Name      string  `json:"name"`            // provider name (OPORD-Azure)
+	Type      string  `json:"type"`            // aws / azure / gcp
+	USD       float64 `json:"usd"`             // window total (0 when unavailable)
 	Available bool    `json:"available"`
 	Error     string  `json:"error,omitempty"` // short reason when unavailable
 }

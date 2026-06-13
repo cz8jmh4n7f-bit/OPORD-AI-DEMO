@@ -1,0 +1,126 @@
+# OPORD local dev stack: Postgres (app data + Tofu state), Vault (dev), Authentik (OIDC).
+# Usage: docker compose -f deployments/docker-compose.yml up -d
+# Dev defaults are inline via ${VAR:-default} so it runs without a .env file.
+# For real values, run with: docker compose --env-file ../.env -f deployments/docker-compose.yml up -d
+
+name: opord
+
+services:
+  # --- Application database + OpenTofu `pg` state backend ---
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-opord}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-opord}
+      POSTGRES_DB: ${POSTGRES_DB:-opord}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - opord_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-opord} -d ${POSTGRES_DB:-opord}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # --- Secrets: OpenBao (MPL-2.0 fork of Vault; speaks the same API, so the
+  #     hashicorp/vault/api client + OPORD's VAULT_ADDR/VAULT_TOKEN are unchanged).
+  #     Dev mode: in-memory, unsealed, root token known. Not for production. ---
+  openbao:
+    image: openbao/openbao:2.5.4
+    restart: unless-stopped
+    cap_add:
+      - IPC_LOCK
+    environment:
+      BAO_ADDR: "http://0.0.0.0:8200"
+      # GCP secrets-engine bootstrap: the engine authenticates to GCP via the
+      # ADC mounted below (laptop). In prod use Workload Identity instead.
+      GOOGLE_APPLICATION_CREDENTIALS: "/openbao/adc/application_default_credentials.json"
+    ports:
+      - "8200:8200"
+    # Persistent file storage (survives restarts) + a plugin_directory so the
+    # MPL GCP secrets engine can be registered. Replaces the old `-dev` (in-mem)
+    # mode. Run `deployments/openbao/fetch-plugins.sh` once to populate plugins/,
+    # then init+unseal (see docs/runbooks/gcp-openbao-dynamic-creds.md).
+    command: ["server", "-config=/openbao/config.hcl"]
+    volumes:
+      - openbao_data:/openbao/file
+      - ./openbao/config.hcl:/openbao/config.hcl:ro
+      - ./openbao/plugins:/openbao/plugins
+      - ${HOME}/.config/gcloud:/openbao/adc:ro
+    healthcheck:
+      # `bao status` exits non-zero while sealed; that's expected until unsealed.
+      test: ["CMD", "bao", "status", "-address=http://127.0.0.1:8200"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # --- Authentik: dependencies ---
+  authentik-postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: authentik
+      POSTGRES_PASSWORD: ${AUTHENTIK_PG_PASSWORD:-authentik}
+      POSTGRES_DB: authentik
+    volumes:
+      - authentik_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authentik -d authentik"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  authentik-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    volumes:
+      - authentik_redis:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # --- Authentik: server (UI + OIDC issuer at :9000) ---
+  authentik-server:
+    image: ghcr.io/goauthentik/server:${AUTHENTIK_TAG:-2024.12}
+    restart: unless-stopped
+    command: server
+    environment: &authentik_env
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:-dev-only-insecure-secret-key-change-me-please-50ch}
+      AUTHENTIK_POSTGRESQL__HOST: authentik-postgres
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_PG_PASSWORD:-authentik}
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_REDIS__HOST: authentik-redis
+      AUTHENTIK_BOOTSTRAP_PASSWORD: ${AUTHENTIK_BOOTSTRAP_PASSWORD:-opord-admin}
+      AUTHENTIK_BOOTSTRAP_TOKEN: ${AUTHENTIK_BOOTSTRAP_TOKEN:-opord-bootstrap-token}
+    ports:
+      - "9000:9000"
+      - "9443:9443"
+    depends_on:
+      authentik-postgres:
+        condition: service_healthy
+      authentik-redis:
+        condition: service_healthy
+
+  # --- Authentik: background worker ---
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:${AUTHENTIK_TAG:-2024.12}
+    restart: unless-stopped
+    command: worker
+    environment: *authentik_env
+    depends_on:
+      authentik-postgres:
+        condition: service_healthy
+      authentik-redis:
+        condition: service_healthy
+
+volumes:
+  opord_pgdata:
+  openbao_data:
+  authentik_pgdata:
+  authentik_redis:

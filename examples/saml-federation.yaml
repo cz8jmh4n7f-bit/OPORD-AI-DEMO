@@ -1,0 +1,35 @@
+# SAML federation test: Azure AD / Entra ID to AWS, modelled as a OPORD stack.
+#
+#   opord stack create -f examples/saml-federation.yaml          # provision
+#   opord stack status  samltest                                 # read ARNs
+#   opord stack destroy samltest --yes                           # tear down ($0)
+#
+# What it creates (in the account `provider` resolves to - e.g. the management
+# account): an IAM SAML provider (Entra as IdP) + Admin / Manager / ReadOnly
+# console roles assumable via SAML. Same resources as the account factory's L3
+# (modules/aws-account-access), but with a PLAIN provider (no cross-account
+# assume_role) so it runs directly in a single account.
+#
+# Use it to test the round-trip described in docs/runbooks/aws-saml-azure-entra.md
+# WITHOUT the account factory. Cost: $0 - SAML providers and IAM roles are free.
+#
+# Prerequisites:
+#   - `provider` (aws-eu) credentials need IAM perms: iam:CreateSAMLProvider,
+#     iam:CreateRole, iam:AttachRolePolicy (+ the ability to attach the policies
+#     below). The management account's credentials usually have this.
+#   - saml_metadata_path is an ABSOLUTE path to the Federation Metadata XML you
+#     downloaded from the Entra "AWS Single-Account Access" enterprise app
+#     (Single sign-on to SAML to Section 3 to Federation Metadata XML to Download).
+name: samltest
+environment: dev
+provider: aws-eu
+spec:
+  module_dir: modules/examples/saml-federation
+  variables:
+    region: eu-central-1
+    name: opord-samltest
+    saml_metadata_path: /tmp/opord-saml/metadata.xml
+    # Optional: override the default Admin/Manager/ReadOnly role set, e.g. a
+    # single ReadOnly role to minimise blast radius for a first test:
+    # roles:
+    #   ReadOnly: ["arn:aws:iam::aws:policy/ReadOnlyAccess"]

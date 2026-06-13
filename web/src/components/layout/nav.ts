@@ -71,7 +71,7 @@ export const navSections: NavSection[] = [
     title: "Resources · Security",
     items: [
       { href: "/secrets", label: "Secrets", icon: Lock },
-      { href: "/access", label: "SSO access", icon: KeyRound },
+      { href: "/access", label: "Access requests", icon: KeyRound },
     ],
   },
   {
@@ -90,6 +90,8 @@ export const navSections: NavSection[] = [
       { href: "/ai/catalog", label: "AI Services", icon: Sparkles },
       { href: "/ai/requests", label: "AI Requests", icon: MessageSquarePlus },
       { href: "/ai/instances", label: "AI Access", icon: Bot },
+      { href: "/ai/admin", label: "Org Admin", icon: Building2 },
+      { href: "/ai/mcp", label: "Agents & MCP", icon: Workflow },
       { href: "/ai/usage", label: "AI Usage", icon: BrainCircuit },
       { href: "/ai/budgets", label: "AI Budgets", icon: CircleDollarSign },
       { href: "/ai/quotas", label: "AI Quotas", icon: SlidersHorizontal },
@@ -119,14 +121,15 @@ export function isActive(pathname: string, href: string): boolean {
   return href === "/" ? pathname === "/" : pathname.startsWith(href);
 }
 
-// The AI Governance section is gated behind the topbar "AI" neon sign (a mode
-// switch): off to the infra nav (everything except AI); on to only AI. Single
-// source of truth so the sidebar and mobile drawer filter identically.
+// One product, two workspaces: the infrastructure catalog and the AI-governance
+// catalog. The nav follows the ROUTE (see lib/ai-mode.ts) - inside /ai/* only the
+// AI section shows; everywhere else the infra sections show. The topbar AI sign
+// navigates between the two. Single source of truth so the sidebar and mobile
+// drawer filter identically.
 export const AI_SECTION_TITLE = "AI Governance";
 
 export function sectionsFor(aiMode: boolean): NavSection[] {
-  // opord-ai (AI-first build): AI on to only the AI section; AI off to no nav (the
-  // console shows the "cloud & on-prem in development" screen - see LayoutShell).
-  // The infra nav entries stay defined above; they're just not surfaced here yet.
-  return aiMode ? navSections.filter((s) => s.title === AI_SECTION_TITLE) : [];
+  return aiMode
+    ? navSections.filter((s) => s.title === AI_SECTION_TITLE)
+    : navSections.filter((s) => s.title !== AI_SECTION_TITLE);
 }

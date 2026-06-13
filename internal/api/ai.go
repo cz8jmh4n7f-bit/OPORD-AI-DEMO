@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -10,9 +9,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/orchestrator"
-	"github.com/google/uuid"
 )
 
 type aiProviderDTO struct {
@@ -208,23 +208,13 @@ func redactAIProviderConfig(cfg map[string]any) map[string]any {
 	return out
 }
 
-// isSensitiveAIProviderConfigKey redacts secret-looking config keys from API
-// responses (normalized substring match, not a fragile exact-name list).
 func isSensitiveAIProviderConfigKey(key string) bool {
-	n := strings.Map(func(r rune) rune {
-		switch r {
-		case '_', '-', '.', ' ':
-			return -1
-		default:
-			return r
-		}
-	}, strings.ToLower(strings.TrimSpace(key)))
-	for _, marker := range []string{"apikey", "secret", "token", "password", "passwd", "credential", "authorization", "bearer", "privatekey"} {
-		if strings.Contains(n, marker) {
-			return true
-		}
+	switch strings.ToLower(strings.TrimSpace(key)) {
+	case "api_key", "openai_api_key", "anthropic_api_key", "token", "access_token", "bearer_token", "secret", "client_secret", "password":
+		return true
+	default:
+		return false
 	}
-	return false
 }
 
 func aiServiceToDTO(s db.ListAIServicesRow) aiServiceDTO {
@@ -383,7 +373,7 @@ func (s *Server) updateAIProvider(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err)
 		return
 	}
-	p, err := s.svc.UpdateAIProvider(r.Context(), pathParam(r, "name"), orchestrator.UpdateAIProviderInput{
+	p, err := s.svc.UpdateAIProvider(r.Context(), chi.URLParam(r, "name"), orchestrator.UpdateAIProviderInput{
 		Config:    req.Config,
 		SecretRef: req.SecretRef,
 		Status:    req.Status,
@@ -396,7 +386,7 @@ func (s *Server) updateAIProvider(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) deleteAIProvider(w http.ResponseWriter, r *http.Request) {
-	name := pathParam(r, "name")
+	name := chi.URLParam(r, "name")
 	if err := s.svc.DeleteAIProvider(r.Context(), name); err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, orchestrator.ErrAIProviderHasActiveInstances) {
@@ -409,7 +399,7 @@ func (s *Server) deleteAIProvider(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) checkAIProvider(w http.ResponseWriter, r *http.Request) {
-	name := pathParam(r, "name")
+	name := chi.URLParam(r, "name")
 	if err := s.svc.CheckAIProvider(r.Context(), name); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
 		return
@@ -418,7 +408,7 @@ func (s *Server) checkAIProvider(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) syncAIProvider(w http.ResponseWriter, r *http.Request) {
-	name := pathParam(r, "name")
+	name := chi.URLParam(r, "name")
 	if err := s.svc.SyncAIProviderServicesByName(r.Context(), name); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
 		return
@@ -427,7 +417,7 @@ func (s *Server) syncAIProvider(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) syncAIProviderModels(w http.ResponseWriter, r *http.Request) {
-	name := pathParam(r, "name")
+	name := chi.URLParam(r, "name")
 	if err := s.svc.SyncAIProviderModelsByName(r.Context(), name); err != nil {
 		writeErr(w, http.StatusBadRequest, err)
 		return
@@ -498,7 +488,7 @@ func (s *Server) createAIRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) approveAIRequest(w http.ResponseWriter, r *http.Request) {
-	name := pathParam(r, "name")
+	name := chi.URLParam(r, "name")
 	var body decisionReq
 	_ = json.NewDecoder(r.Body).Decode(&body)
 	if body.By == "" {
@@ -512,7 +502,7 @@ func (s *Server) approveAIRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) rejectAIRequest(w http.ResponseWriter, r *http.Request) {
-	name := pathParam(r, "name")
+	name := chi.URLParam(r, "name")
 	var body decisionReq
 	_ = json.NewDecoder(r.Body).Decode(&body)
 	if body.By == "" {
@@ -538,35 +528,19 @@ func (s *Server) listAIInstances(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// aiDelete is the shared DELETE handler for budgets/quotas/policies: parse the
-// {id}, run del, return {id, status:deleted}.
-func aiDelete(s *Server, w http.ResponseWriter, r *http.Request, del func(ctx context.Context, id uuid.UUID) error) {
-	id, err := uuid.Parse(pathParam(r, "id"))
+// reapExpiredAIInstances runs the access-expiry sweep on demand (it also runs on
+// a timer in the API). Operator+; returns how many grants were revoked.
+func (s *Server) reapExpiredAIInstances(w http.ResponseWriter, r *http.Request) {
+	n, err := s.svc.ReapExpiredAIInstances(r.Context())
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err)
 		return
 	}
-	if err := del(r.Context(), id); err != nil {
-		writeErr(w, http.StatusBadRequest, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]string{"id": id.String(), "status": "deleted"})
-}
-
-func (s *Server) deleteAIBudget(w http.ResponseWriter, r *http.Request) {
-	aiDelete(s, w, r, s.svc.DeleteAIBudget)
-}
-
-func (s *Server) deleteAIQuota(w http.ResponseWriter, r *http.Request) {
-	aiDelete(s, w, r, s.svc.DeleteAIQuota)
-}
-
-func (s *Server) deleteAIPolicy(w http.ResponseWriter, r *http.Request) {
-	aiDelete(s, w, r, s.svc.DeleteAIAccessPolicy)
+	writeJSON(w, http.StatusOK, map[string]any{"revoked": n})
 }
 
 func (s *Server) revokeAIInstance(w http.ResponseWriter, r *http.Request) {
-	id, err := uuid.Parse(pathParam(r, "id"))
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err)
 		return
@@ -732,12 +706,9 @@ func (s *Server) listAIModels(w http.ResponseWriter, r *http.Request) {
 func (s *Server) listAIRenewals(w http.ResponseWriter, r *http.Request) {
 	days := int32(30)
 	if raw := r.URL.Query().Get("days"); raw != "" {
-		n, err := strconv.Atoi(raw)
-		if err != nil || n < 1 || n > 3650 {
-			writeErr(w, http.StatusBadRequest, errors.New("days must be an integer between 1 and 3650"))
-			return
+		if n, err := strconv.Atoi(raw); err == nil && n > 0 {
+			days = int32(n)
 		}
-		days = int32(n)
 	}
 	rows, err := s.svc.ListAIExpiringInstances(r.Context(), days)
 	if err != nil {

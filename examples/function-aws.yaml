@@ -1,0 +1,15 @@
+# Serverless function (AWS Lambda) - kind=function.
+# With no s3_bucket/s3_key, OPORD ships a built-in python "hello" handler so the
+# function is immediately invokable. Supply s3_bucket+s3_key to deploy your own zip.
+name: hello-fn
+environment: dev
+provider: aws-eu
+spec:
+  runtime: python3.12
+  handler: index.handler
+  memory_mb: 128
+  timeout_sec: 10
+  env_vars:
+    STAGE: dev
+    LOG_LEVEL: info
+  ttl_hours: 1

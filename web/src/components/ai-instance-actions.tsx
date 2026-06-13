@@ -24,7 +24,7 @@ export function AIInstanceActions({ id, status }: { id: string; status: string }
   async function revoke() {
     const ok = await confirm({
       title: "Revoke AI access?",
-      message: "OPORD marks this access instance revoked and audits it. Remember to remove the seat/key in the provider console too (manual in MVP).",
+      message: "The mock provider will mark this access instance as revoked.",
       confirmLabel: "Revoke",
       danger: true,
     });

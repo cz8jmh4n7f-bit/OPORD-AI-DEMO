@@ -1,0 +1,34 @@
+# AWS access-vending "project": grant a delivery team access to an EXISTING
+# account via IAM Identity Center, modelled as a OPORD stack.
+#
+#   opord stack create -f examples/sso-project.yaml --dry-run
+#
+# How it works: OPORD creates an Identity Center GROUP (opord-<project_name>),
+# adds the listed existing users as members, (optionally) creates a permission
+# set, and grants GROUP -> permission set -> account_id. "Add a user later" =
+# append to user_names and re-apply (idempotent).
+#
+# Prerequisites:
+#   - IAM Identity Center is enabled in your AWS Organization.
+#   - The `provider` below points at the Identity Center management (or
+#     delegated-admin) account - that's where these APIs run.
+#   - The usernames already exist in Identity Center.
+name: team-alpha
+environment: dev
+provider: aws-eu
+spec:
+  module_dir: modules/aws-sso-project
+  variables:
+    region: eu-central-1
+    project_name: team-alpha
+    # The existing target account this team gets access to (12 digits):
+    account_id: "111122223333"
+    # Existing Identity Center usernames to add to the project group:
+    user_names:
+      - alice@example.com
+      - bob@example.com
+    # Create a permission set for the project (or set existing_permission_set_arn):
+    permission_set_name: team-alpha-readonly
+    managed_policy_arns:
+      - arn:aws:iam::aws:policy/ReadOnlyAccess
+    session_duration: PT8H

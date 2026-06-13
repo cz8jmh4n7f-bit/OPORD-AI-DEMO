@@ -1,0 +1,68 @@
+# Custom environment (your own blueprint): a Kubernetes cluster + two standalone
+# VMs (a cache and a bastion), provisioned and managed as one unit.
+#   opord env create -f examples/env-custom.yaml --dry-run
+# Each component is a normal cluster/VM named "<name>-<component>". On-prem
+# fields are used by Proxmox/vSphere and ignored by managed providers (EKS).
+name: platform
+environment: dev
+provider: pve-lab
+components:
+  - name: cluster
+    kind: k8s-cluster
+    cluster:
+      kubernetes_version: "1.31.0"
+      cni: cilium
+      template: "9000"
+      control_plane:
+        count: 1
+        name_prefix: cp
+        ip_start: 10.0.0.10
+        specs: { cpu: 2, memory_mb: 4096, disk_gb: 40 }
+      workers:
+        count: 3
+        name_prefix: worker
+        ip_start: 10.0.0.20
+        specs: { cpu: 4, memory_mb: 8192, disk_gb: 80 }
+      networking:
+        netmask: "255.255.255.0"
+        gateway: 10.0.0.1
+        dns_servers: [1.1.1.1]
+        dns_suffix: cluster.local
+        control_plane_endpoint: 10.0.0.10
+        control_plane_endpoint_port: 6443
+        pod_cidr: 10.244.0.0/16
+        service_cidr: 10.96.0.0/12
+      ssh_user: debian
+      ssh_public_key: "ssh-rsa AAAA-example"
+  - name: cache
+    kind: vm
+    vm:
+      template: "9000"
+      count: 1
+      name_prefix: cache
+      cpu: 2
+      memory_mb: 4096
+      disk_gb: 40
+      ip_start: 10.0.0.40
+      netmask: "255.255.255.0"
+      gateway: 10.0.0.1
+      dns_servers: [1.1.1.1]
+      dns_suffix: local
+      ssh_user: debian
+      ttl_hours: 0
+  - name: bastion
+    kind: vm
+    vm:
+      template: "9000"
+      count: 1
+      name_prefix: bastion
+      cpu: 1
+      memory_mb: 2048
+      disk_gb: 20
+      ip_start: 10.0.0.50
+      netmask: "255.255.255.0"
+      gateway: 10.0.0.1
+      dns_servers: [1.1.1.1]
+      dns_suffix: local
+      ssh_user: debian
+      ttl_hours: 0

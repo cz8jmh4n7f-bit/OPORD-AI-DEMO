@@ -1,0 +1,5 @@
+# Plugin binaries are fetched via fetch-plugins.sh, not committed.
+plugins/
+# Local init output (unseal key + root token) — NEVER commit.
+.init.json
+.unseal

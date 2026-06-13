@@ -1,0 +1,14 @@
+# Managed Kubernetes (EKS) on AWS (provider must be a registered aws provider
+# whose config has region + subnet_ids).
+#   opord cluster create -f examples/cluster-eks.yaml --dry-run
+# EKS is a managed control plane: no template, no static node IPs, no Ansible
+# bootstrap. Sizing is by the worker node group (count + instance type).
+name: eks-demo
+environment: dev
+provider: aws-eu
+spec:
+  kubernetes_version: "1.31"
+  cni: vpc-cni # informational; EKS ships the AWS VPC CNI
+  workers:
+    count: 2
+    # node_instance_type comes from the provider config (default t3.medium)

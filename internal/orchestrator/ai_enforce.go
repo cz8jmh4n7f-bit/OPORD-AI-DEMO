@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
 )
 
 // aiReqContext carries the facts an AI request is evaluated against. It is built
@@ -20,7 +20,6 @@ type aiReqContext struct {
 	ServiceCategory string
 	ProviderName    string
 	ProviderType    string
-	ProviderID      string
 	Owner           string
 	Workspace       string
 	Tenant          pgtype.UUID
@@ -44,8 +43,8 @@ func IsAIEnforcementError(err error) bool {
 // aiPolicyRule is the (minimal, documented) shape stored in
 // ai_access_policies.rules. A rule SELECTS requests: every non-empty selector
 // must match (AND); an empty selector is a wildcard. An active rule whose effect
-// is "deny" (the default) BLOCKS any request it selects; an active "allow" rule
-// that matches WHITELISTS the request past all deny rules (allow overrides deny).
+// is "deny" (the default) BLOCKS any request it selects. effect "allow" is
+// reserved and is a no-op in v1.
 //
 // Example - deny external contractors any OpenAI access:
 //
@@ -105,7 +104,7 @@ func budgetAppliesToRequest(b db.AiBudget, rc aiReqContext) bool {
 	case "", "global":
 		return true
 	case "provider":
-		return ref == "" || strings.EqualFold(rc.ProviderName, ref) || (rc.ProviderID != "" && rc.ProviderID == ref)
+		return ref == "" || strings.EqualFold(rc.ProviderName, ref)
 	case "owner":
 		return strings.EqualFold(rc.Owner, ref)
 	case "workspace":
@@ -141,27 +140,19 @@ func scopeLabel(b db.AiBudget) string {
 func (s *Service) evaluateAIGovernance(ctx context.Context, rc aiReqContext) error {
 	var hard, soft []string
 
-	// 1) Policy guardrails: a matching active ALLOW rule whitelists the request
-	//    past DENY rules; otherwise every matching active DENY blocks it.
+	// 1) Policy guardrails (deny-list).
 	if policies, err := s.ListAIAccessPolicies(ctx); err == nil {
-		allowed := false
-		var denied []string
 		for _, p := range policies {
 			if p.Status != "active" {
 				continue
 			}
 			var rule aiPolicyRule
-			if json.Unmarshal(p.Rules, &rule) != nil || !rule.matches(rc) {
+			if json.Unmarshal(p.Rules, &rule) != nil {
 				continue
 			}
-			if rule.isDeny() {
-				denied = append(denied, fmt.Sprintf("policy %q denies this request", p.Name))
-			} else {
-				allowed = true
+			if rule.isDeny() && rule.matches(rc) {
+				hard = append(hard, fmt.Sprintf("policy %q denies this request", p.Name))
 			}
-		}
-		if !allowed {
-			hard = append(hard, denied...)
 		}
 	}
 
@@ -229,7 +220,8 @@ func (s *Service) evaluateAIGovernance(ctx context.Context, rc aiReqContext) err
 }
 
 // evaluateGatewayBudget blocks an AI gateway proxy call when a global or
-// provider budget is at its hard limit (the spend gate for the proxy path). It
+// provider budget is at its hard limit (the spend gate for the proxy path) OR a
+// token/cost quota with enforcement=block is exhausted (the throughput gate). It
 // fails OPEN on a read error so an infra blip never wedges the proxy.
 func (s *Service) evaluateGatewayBudget(ctx context.Context, providerName string) error {
 	budgets, err := s.ListAIBudgetSummaries(ctx)
@@ -247,41 +239,54 @@ func (s *Service) evaluateGatewayBudget(ctx context.Context, providerName string
 			return &aiEnforcementError{reasons: []string{fmt.Sprintf("budget exhausted for provider %q", providerName)}}
 		}
 	}
-	// Token / cost / request quotas are enforced HERE - the consumption point.
-	// Global (unscoped) block-quotas only; a service-scoped token quota can't be
-	// mapped to a raw proxy call.
-	if quotas, err := s.ListAIQuotas(ctx); err == nil {
-		usage, _ := s.ListAIUsageRecords(ctx)
-		for _, q := range quotas {
-			if q.ServiceID.Valid || q.Enforcement != "block" {
-				continue
-			}
-			metric := strings.ToLower(strings.TrimSpace(q.Metric))
-			if metric != "tokens" && metric != "cost_usd" && metric != "requests" {
-				continue
-			}
-			start := aiBudgetPeriodStart(q.Period)
-			var total float64
-			for _, u := range usage {
-				if !strings.EqualFold(u.ProviderName, providerName) || u.PeriodStart.Before(start) {
+	// Token / cost quotas (the gap the request-time path left to the gateway):
+	// sum the current period's usage for the metric and block when a block-quota
+	// is exhausted.
+	if quotas, err := s.ListAIQuotas(ctx); err == nil && len(quotas) > 0 {
+		usage, uerr := s.ListAIUsageRecords(ctx)
+		if uerr == nil {
+			for _, q := range quotas {
+				metric := strings.ToLower(strings.TrimSpace(q.Metric))
+				if metric != "tokens" && metric != "cost_usd" && metric != "cost" {
+					continue // seats/instances are enforced at request time
+				}
+				if !strings.EqualFold(q.Enforcement, "block") {
 					continue
 				}
-				switch metric {
-				case "tokens":
-					if strings.EqualFold(u.Metric, "tokens") {
-						total += u.Quantity
-					}
-				case "cost_usd":
-					total += u.CostUsd
-				case "requests":
-					total++
+				used := aiQuotaUsage(metric, q.Period, usage)
+				if used >= q.LimitQuantity {
+					s.emitAIAudit(ctx, "ai_gateway", uuid.Nil, "governance_blocked",
+						fmt.Sprintf("%s quota exhausted (%.0f/%.0f)", metric, used, q.LimitQuantity),
+						map[string]any{"provider": providerName, "metric": metric}, "")
+					return &aiEnforcementError{reasons: []string{
+						fmt.Sprintf("%s quota exhausted (%.0f/%.0f %s)", metric, used, q.LimitQuantity, q.Period),
+					}}
 				}
-			}
-			if total >= q.LimitQuantity {
-				s.emitAIAudit(ctx, "ai_gateway", uuid.Nil, "governance_blocked", metric+" quota reached", map[string]any{"provider": providerName}, "")
-				return &aiEnforcementError{reasons: []string{fmt.Sprintf("%s quota reached (%.0f/%.0f) for provider %q this %s", metric, total, q.LimitQuantity, providerName, q.Period)}}
 			}
 		}
 	}
 	return nil
+}
+
+// aiQuotaUsage sums usage for a metric over the quota's current period.
+func aiQuotaUsage(metric, period string, usage []db.ListAIUsageRecordsRow) float64 {
+	start := aiBudgetPeriodStart(period)
+	costLike := metric == "cost_usd" || metric == "cost"
+	var total float64
+	for _, u := range usage {
+		if u.PeriodStart.Before(start) {
+			continue
+		}
+		um := strings.ToLower(strings.TrimSpace(u.Metric))
+		if costLike {
+			if um == "cost_usd" || um == "cost" {
+				total += u.CostUsd
+			}
+			continue
+		}
+		if um == metric { // tokens
+			total += u.Quantity
+		}
+	}
+	return total
 }

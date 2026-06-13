@@ -1,0 +1,30 @@
+# Provision a member AWS account + baseline (the OPORD account factory).
+#
+#   opord account create -f examples/account-aws.yaml --dry-run
+#
+# Sequences the layers: L1 Organizations CreateAccount (master) to L2 baseline to 
+# L3 access (SAML, only if the provider config carries saml_metadata_document)
+# to L4 secure VPC (/22 from the Vault CIDR pool) to L5 security baseline. L2-L5
+# run in the member account via AssumeRole into OrganizationAccountAccessRole.
+#
+# Prerequisites:
+#   - The provider points at the Organizations MANAGEMENT account; its creds
+#     come from the Vault AWS Secrets Engine (short-lived STS) - see runbook
+#     aws-account-vault-setup.md.
+#   - For create_vpc: the Vault CIDR pool is seeded and VAULT_* is set (IPAM),
+#     OR supply an explicit vpc_cidr (a /22).
+name: team-alpha-prod
+environment: dev
+provider: aws-mgmt
+spec:
+  csa_id: alpha001
+  project_id: Team Alpha
+  cloud_name: prod
+  owner: alice
+  email: aws+alpha001-prod@example.com
+  # ou_id: ou-xxxx-xxxxxxxx        # optional parent OU
+  create_vpc: true
+  vpc_region: eu-central-1
+  # vpc_cidr: 10.16.0.0/22         # omit to let IPAM allocate from the pool
+  monthly_budget_usd: 500
+  # account_id: "111122223333"     # set (with skip.create_account) for re-runs on an existing account

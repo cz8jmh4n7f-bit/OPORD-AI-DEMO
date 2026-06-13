@@ -16,7 +16,7 @@ export default async function AIQuotasPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="AI Quotas" description="Seat/instance quotas block at request time; token, cost, and request quotas are enforced on the gateway.">
+      <PageHeader title="AI Quotas" description="Token, request, and service-level AI guardrails.">
         <AddAIGovernanceButton kind="quota" />
       </PageHeader>
 
@@ -27,7 +27,7 @@ export default async function AIQuotasPage() {
 
       {quotas.length === 0 ? (
         <Card>
-          <EmptyState icon={SlidersHorizontal} title="No AI quotas" description="Add a seat/instance cap (enforced at request) or a token/cost/request quota (enforced on the gateway)." />
+          <EmptyState icon={SlidersHorizontal} title="No AI quotas" description="Add quota guardrails for tokens, requests, seats, or workspace usage." />
         </Card>
       ) : (
         <Card className="overflow-hidden p-0">

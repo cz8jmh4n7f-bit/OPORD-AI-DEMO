@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/checks"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
@@ -141,6 +142,37 @@ func (s *Service) ComplianceReport(ctx context.Context) (*checks.Scorecard, erro
 	}
 	for _, a := range accounts {
 		subjects = append(subjects, subjectFromResource(a.Resource, "account", a.Provider))
+	}
+
+	// AI access grants - governed entitlements (owner/expiry/access-review).
+	aiInstances, err := s.ListAIInstances(ctx)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now()
+	for _, inst := range aiInstances {
+		if inst.Status == "revoked" || inst.Status == "expired" {
+			continue
+		}
+		ws := ""
+		if inst.Workspace != "" {
+			ws = inst.Workspace
+		}
+		overdue := (inst.Status == "active" || inst.Status == "suspended") &&
+			inst.ExpiresAt.Valid && inst.ExpiresAt.Time.Before(now)
+		subjects = append(subjects, checks.Subject{
+			Name:        inst.ProviderName + "/" + inst.Owner,
+			Kind:        "ai-access",
+			Provider:    inst.ProviderName,
+			Environment: ws,
+			Status:      inst.Status,
+			Observed: map[string]any{
+				"owner":      inst.Owner,
+				"workspace":  ws,
+				"has_expiry": inst.ExpiresAt.Valid,
+				"overdue":    overdue,
+			},
+		})
 	}
 
 	results := checks.NewEngine().Run(subjects)

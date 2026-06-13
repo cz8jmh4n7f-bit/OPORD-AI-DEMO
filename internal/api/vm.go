@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/models"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/orchestrator"
 )
@@ -92,7 +93,7 @@ func (s *Server) listVMs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getVM(w http.ResponseWriter, r *http.Request) {
-	name := pathParam(r, "name")
+	name := chi.URLParam(r, "name")
 	env := r.URL.Query().Get("env")
 	if env == "" {
 		env = "dev"
@@ -139,7 +140,7 @@ type scaleVMReq struct {
 
 // scaleVM changes a VM's count and re-provisions (day-2 op).
 func (s *Server) scaleVM(w http.ResponseWriter, r *http.Request) {
-	name := pathParam(r, "name")
+	name := chi.URLParam(r, "name")
 	env := r.URL.Query().Get("env")
 	if env == "" {
 		env = "dev"
@@ -164,7 +165,7 @@ func (s *Server) scaleVM(w http.ResponseWriter, r *http.Request) {
 // is allowed only for terminal VMs (destroyed/failed) - DeleteVMRecord enforces
 // that - so users can clear out tombstoned rows from the list.
 func (s *Server) destroyVM(w http.ResponseWriter, r *http.Request) {
-	name := pathParam(r, "name")
+	name := chi.URLParam(r, "name")
 	env := r.URL.Query().Get("env")
 	if env == "" {
 		env = "dev"

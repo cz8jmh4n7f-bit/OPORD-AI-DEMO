@@ -42,14 +42,6 @@ export function AddAIProviderButton() {
     setAnthropicVersion("2023-06-01");
   }
 
-  // Re-opening the modal must not show the PREVIOUS add's values (stale type/
-  // name confuse the second add - and invite duplicated-name typos).
-  function openFresh() {
-    setProviderType("openai");
-    changeProviderType("openai");
-    setOpen(true);
-  }
-
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -86,7 +78,7 @@ export function AddAIProviderButton() {
 
   return (
     <>
-      <button type="button" onClick={openFresh} className={button({ size: "md" })}>
+      <button type="button" onClick={() => setOpen(true)} className={button({ size: "md" })}>
         <Plus className="size-4" />
         Add AI provider
       </button>
@@ -208,14 +200,7 @@ export function AIProviderActions({ provider }: { provider: AIProvider }) {
         toast({ variant: "error", title: "Check failed", description: data.error ?? `Request failed (${res.status})` });
         return;
       }
-      toast({
-        variant: "success",
-        title: `“${provider.name}” checked`,
-        description:
-          provider.type === "mock_ai"
-            ? "MockAI is always reachable (no credentials required)."
-            : `${provider.type} credentials are valid.`,
-      });
+      toast({ variant: "success", title: `“${provider.name}” checked`, description: `${provider.type} credentials are valid.` });
       router.refresh();
     } catch (err) {
       toast({ variant: "error", title: "Check failed", description: String(err) });

@@ -9,10 +9,10 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/models"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/providers"
-	"github.com/google/uuid"
 )
 
 // These are end-to-end orchestrator lifecycle tests: they drive the real
@@ -30,7 +30,7 @@ type fakeVMProvider struct {
 	destroyed    int
 }
 
-func (f *fakeVMProvider) Type() models.ProviderType { return models.ProviderAWS }
+func (f *fakeVMProvider) Type() models.ProviderType                          { return models.ProviderAWS }
 func (f *fakeVMProvider) Validate(context.Context, models.ClusterSpec) error { return nil }
 func (f *fakeVMProvider) Preflight(context.Context, providers.Request) (*providers.PreflightResult, error) {
 	return &providers.PreflightResult{ModuleValid: true}, nil

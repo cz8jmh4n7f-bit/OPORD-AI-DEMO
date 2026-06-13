@@ -1,0 +1,16 @@
+# LiteLLM proxy config for the OPORD dev stack. A single MOCK model so virtual
+# keys can be minted + a completion served with NO real upstream credentials.
+# Swap these for real models (openai/gpt-4o, anthropic/claude-..., with api keys
+# from env/secret store) for a live data plane.
+model_list:
+  - model_name: mock-gpt
+    litellm_params:
+      model: openai/gpt-3.5-turbo
+      api_key: "sk-fake-not-used"
+      mock_response: "Hello from the OPORD-governed LiteLLM proxy."
+
+general_settings:
+  master_key: sk-opord-litellm-master
+
+litellm_settings:
+  drop_params: true

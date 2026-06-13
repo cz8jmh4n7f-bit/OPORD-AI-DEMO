@@ -64,12 +64,6 @@ export default function LoginPage() {
               Paste your OPORD API key. An admin can mint one with{" "}
               <code className="rounded bg-muted px-1 py-0.5 text-xs">opord user add</code>.
             </p>
-            <p className="text-xs text-muted-foreground">
-              Trying the bundled demo stack? Use{" "}
-              <code className="rounded bg-muted px-1 py-0.5 text-xs">opd_demo_admin_key</code> (full access) or{" "}
-              <code className="rounded bg-muted px-1 py-0.5 text-xs">opd_demo_viewer_key</code> (read-only) - see the
-              README to rotate or disable these.
-            </p>
           </div>
 
           {error && (

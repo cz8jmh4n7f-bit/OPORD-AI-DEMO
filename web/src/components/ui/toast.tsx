@@ -8,29 +8,8 @@ import { cn } from "@/lib/utils";
 type Variant = "success" | "error" | "info";
 type Toast = { id: number; title: string; description?: string; variant: Variant };
 
-// description is typed `unknown` because call sites often pass `data.error`
-// straight from an `any`-typed res.json(). A relayed upstream error can be an
-// OBJECT ({error:{message}}), and rendering an object as a React child throws
-// in a loop that can take the whole tab down - so we coerce to a string here.
-type ToastInput = { title: string; description?: unknown; variant?: Variant };
+type ToastInput = { title: string; description?: string; variant?: Variant };
 type Ctx = { toast: (t: ToastInput) => void };
-
-function coerceDescription(d: unknown): string | undefined {
-  if (d == null) return undefined;
-  if (typeof d === "string") return d;
-  if (d instanceof Error) return d.message;
-  if (typeof d === "object") {
-    const o = d as { message?: unknown; error?: unknown };
-    if (typeof o.message === "string") return o.message;
-    if (typeof o.error === "string") return o.error;
-    try {
-      return JSON.stringify(d);
-    } catch {
-      return String(d);
-    }
-  }
-  return String(d);
-}
 
 const ToastCtx = createContext<Ctx | null>(null);
 
@@ -54,7 +33,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const toast = useCallback(
     (t: ToastInput) => {
       const id = ++seq;
-      setToasts((cur) => [...cur, { id, variant: "info", ...t, description: coerceDescription(t.description) }]);
+      setToasts((cur) => [...cur, { id, variant: "info", ...t }]);
       setTimeout(() => remove(id), 5000);
     },
     [remove],

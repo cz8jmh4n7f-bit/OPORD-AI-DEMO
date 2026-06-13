@@ -2,10 +2,11 @@ package orchestrator
 
 import (
 	"testing"
+	"time"
 
-	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
 )
 
 func TestEmailDomain(t *testing.T) {
@@ -82,5 +83,44 @@ func TestBudgetAppliesToRequest(t *testing.T) {
 		if got := budgetAppliesToRequest(c.b, rc); got != c.want {
 			t.Errorf("%s: budgetAppliesToRequest = %v, want %v", c.name, got, c.want)
 		}
+	}
+}
+
+func TestBudgetScopeMatchesImportedUsage(t *testing.T) {
+	// A workspace-scoped budget must count IMPORTED usage (instance_id NULL, so
+	// the joined Workspace is nil) by the workspace name recorded in raw.
+	b := db.AiBudget{Scope: "workspace", ScopeRef: "team-platform"}
+	imported := db.ListAIUsageRecordsRow{
+		Metric:  "cost_usd",
+		CostUsd: 12.50,
+		Raw:     []byte(`{"source":"anthropic_cost_report","workspace":"team-platform","workspace_id":"wrkspc_1"}`),
+	}
+	if !aiBudgetScopeMatches(b, imported) {
+		t.Fatal("imported usage with matching raw workspace name must count toward the budget")
+	}
+	// Also match by the provider workspace id when the name isn't recorded.
+	byID := db.AiBudget{Scope: "workspace", ScopeRef: "wrkspc_1"}
+	if !aiBudgetScopeMatches(byID, imported) {
+		t.Fatal("imported usage must also match a budget keyed by the workspace id")
+	}
+	// A different workspace must NOT match.
+	other := db.AiBudget{Scope: "workspace", ScopeRef: "team-other"}
+	if aiBudgetScopeMatches(other, imported) {
+		t.Fatal("imported usage must not leak into an unrelated workspace budget")
+	}
+}
+
+func TestAIQuotaUsageSumsByMetric(t *testing.T) {
+	usage := []db.ListAIUsageRecordsRow{
+		{Metric: "tokens", Quantity: 1000, PeriodStart: time.Now()},
+		{Metric: "tokens", Quantity: 500, PeriodStart: time.Now()},
+		{Metric: "cost_usd", CostUsd: 7.25, PeriodStart: time.Now()},
+		{Metric: "tokens", Quantity: 999, PeriodStart: time.Now().AddDate(0, -2, 0)}, // last period, excluded
+	}
+	if got := aiQuotaUsage("tokens", "monthly", usage); got != 1500 {
+		t.Fatalf("token quota usage = %v, want 1500 (current period only)", got)
+	}
+	if got := aiQuotaUsage("cost_usd", "monthly", usage); got != 7.25 {
+		t.Fatalf("cost quota usage = %v, want 7.25", got)
 	}
 }

@@ -18,6 +18,7 @@ import (
 
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/aiproviders"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/aiproviders/anthropic"
+	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/aiproviders/litellm"
 	aimock "github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/aiproviders/mock"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/aiproviders/openai"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/azure"
@@ -3377,6 +3378,7 @@ func newService(ctx context.Context, cfg *config.Config) (*orchestrator.Service,
 	aimock.Register(aiReg)
 	openai.Register(aiReg)
 	anthropic.Register(aiReg)
+	litellm.Register(aiReg)
 	svc.SetAIProviders(aiReg)
 	return svc, func() { pool.Close() }, nil
 }

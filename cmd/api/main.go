@@ -15,6 +15,7 @@ import (
 
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/aiproviders"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/aiproviders/anthropic"
+	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/aiproviders/litellm"
 	aimock "github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/aiproviders/mock"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/aiproviders/openai"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/api"
@@ -92,6 +93,7 @@ func run() error {
 	aimock.Register(aiReg)
 	openai.Register(aiReg)
 	anthropic.Register(aiReg)
+	litellm.Register(aiReg)
 
 	resolver := creds.NewResolver(cfg.VaultAddr, cfg.VaultToken, cfg.VaultKVMount, logger)
 	if pass := creds.StateEncryptionPassphrase(context.Background(), resolver); pass != "" {
@@ -161,15 +163,6 @@ func run() error {
 	srv := api.NewServer(svc, logger)
 	srv.SetAuth(svc.ResolveAPIKey, cfg.AuthEnabled)
 	logger.Info("auth", "enabled", cfg.AuthEnabled)
-	if cfg.SeedDemoUsers {
-		seedDemoUsers(context.Background(), svc, logger)
-		if cfg.AuthEnabled {
-			logger.Warn("SECURITY: public demo API keys are active (OPORD_SEED_DEMO_USERS=true) while RBAC is enforced "+
-				"- anyone who can read the README has admin access. Set OPORD_SEED_DEMO_USERS=false and mint your own "+
-				"keys (opord user add) before exposing this deployment.",
-				"admin_key", demoAdminKey)
-		}
-	}
 	if err := jobs.Migrate(context.Background(), pool); err != nil {
 		logger.Warn("river migrate failed; using in-process jobs", "err", err)
 	} else if enq, err := jobs.NewEnqueuer(pool); err != nil {
@@ -253,42 +246,15 @@ func runReaper(ctx context.Context, svc *orchestrator.Service, logger *slog.Logg
 			} else if n > 0 {
 				logger.Info("ttl reaper destroyed expired vms", "count", n)
 			}
-			// Flip AI access instances past their expiry to "expired" so a grant
-			// does not linger "active" forever (renewals only lists them).
-			if m, err := svc.ExpireAIInstances(ctx); err != nil {
-				logger.Error("ai expiry reaper failed", "err", err)
-			} else if m > 0 {
-				logger.Info("ai expiry reaper marked instances expired", "count", m)
+			// AI access expiry: revoke grants past their approved window (governance
+			// safety net - access must not outlive its expiry).
+			if ai, err := svc.ReapExpiredAIInstances(ctx); err != nil {
+				logger.Error("ai expiry reaper scan failed", "err", err)
+			} else if ai > 0 {
+				logger.Info("ai expiry reaper revoked expired access", "count", ai)
 			}
 		}
 	}
-}
-
-// Fixed, well-known demo API keys (OPORD_SEED_DEMO_USERS=true). DEMO ONLY -
-// documented in the README; rotate or disable seeding for any real deployment.
-const (
-	demoAdminKey  = "opd_demo_admin_key"
-	demoViewerKey = "opd_demo_viewer_key"
-)
-
-// seedDemoUsers idempotently creates the demo admin + viewer in tenant "default"
-// so RBAC can be enabled by default yet still tried with one paste. Failures are
-// logged, not fatal (the API still starts).
-func seedDemoUsers(ctx context.Context, svc *orchestrator.Service, logger *slog.Logger) {
-	seeds := []struct{ email, role, key string }{
-		{"admin@opord.local", "admin", demoAdminKey},
-		{"viewer@opord.local", "viewer", demoViewerKey},
-	}
-	for _, s := range seeds {
-		if created, err := svc.EnsureSeedUser(ctx, s.email, "default", s.role, s.key); err != nil {
-			logger.Warn("demo seed user failed", "email", s.email, "err", err)
-		} else if created {
-			logger.Info("demo seed user created", "email", s.email, "role", s.role)
-		}
-	}
-	logger.Info("DEMO RBAC enabled - sign in at /login with one of these keys (rotate for real use)",
-		"admin", demoAdminKey+" (full access)",
-		"viewer", demoViewerKey+" (read-only - writes return 403)")
 }
 
 func newLogger(cfg *config.Config) *slog.Logger {

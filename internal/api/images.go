@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"time"
+
+	"github.com/go-chi/chi/v5"
 )
 
 // listProviderImages lists bootable images (AWS AMIs) for a provider so the web
@@ -11,7 +13,7 @@ import (
 // AWS is unreachable / has no creds) it returns the error and the frontend falls
 // back to manual ID entry.
 func (s *Server) listProviderImages(w http.ResponseWriter, r *http.Request) {
-	name := pathParam(r, "name")
+	name := chi.URLParam(r, "name")
 	region := r.URL.Query().Get("region")
 	owner := r.URL.Query().Get("owner")
 

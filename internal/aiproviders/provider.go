@@ -23,6 +23,7 @@ const (
 	ProviderGemini        ProviderType = "gemini"
 	ProviderGitHubCopilot ProviderType = "github_copilot"
 	ProviderCursor        ProviderType = "cursor"
+	ProviderLiteLLM       ProviderType = "litellm"
 )
 
 // Service is a provider-advertised AI catalog entry.

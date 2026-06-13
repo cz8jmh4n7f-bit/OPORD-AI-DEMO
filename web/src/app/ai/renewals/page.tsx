@@ -1,21 +1,17 @@
 import { CalendarClock } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
-import { Badge, type BadgeVariant } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { fetchAIRenewals } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 
 export const metadata = { title: "AI Renewals" };
 
-// remaining returns a human label + urgency color. Already-past expiries read
-// "expired" (danger) instead of a confusing negative day count.
-function remaining(raw?: string): { label: string; variant: BadgeVariant } {
-  if (!raw) return { label: "-", variant: "default" };
-  const days = Math.ceil((new Date(raw).getTime() - Date.now()) / 86_400_000);
-  if (days < 0) return { label: "expired", variant: "danger" };
-  if (days <= 7) return { label: `${days}d`, variant: "danger" };
-  return { label: `${days}d`, variant: "warning" };
+function daysUntil(raw?: string): string {
+  if (!raw) return "-";
+  const diff = new Date(raw).getTime() - Date.now();
+  return `${Math.ceil(diff / 86_400_000)}d`;
 }
 
 export default async function AIRenewalsPage() {
@@ -52,12 +48,7 @@ export default async function AIRenewalsPage() {
                     <td className="px-5 py-3 text-muted-foreground">{r.owner || "-"}</td>
                     <td className="px-5 py-3 text-muted-foreground">{r.workspace || "-"}</td>
                     <td className="px-5 py-3 text-muted-foreground">{r.expiresAt ? formatDate(r.expiresAt) : "-"}</td>
-                    <td className="px-5 py-3">
-                      {(() => {
-                        const rem = remaining(r.expiresAt);
-                        return <Badge variant={rem.variant}>{rem.label}</Badge>;
-                      })()}
-                    </td>
+                    <td className="px-5 py-3"><Badge variant="warning">{daysUntil(r.expiresAt)}</Badge></td>
                   </tr>
                 ))}
               </tbody>

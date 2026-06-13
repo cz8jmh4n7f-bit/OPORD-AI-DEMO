@@ -1,0 +1,20 @@
+---
+# Phase 2, step 2: initialize the cluster on the first control plane.
+- name: Initialize Kubernetes cluster on first control plane
+  hosts: control_plane_init
+  become: true
+  gather_facts: true
+  any_errors_fatal: true
+
+  roles:
+    - role: kubeadm_init
+
+  post_tasks:
+    # OPORD passes kubeconfig_local_path so the orchestrator can retrieve the
+    # admin kubeconfig (flat: one file at the exact dest). Skipped when unset.
+    - name: Fetch admin kubeconfig back to the controller
+      ansible.builtin.fetch:
+        src: /etc/kubernetes/admin.conf
+        dest: "{{ kubeconfig_local_path }}"
+        flat: true
+      when: kubeconfig_local_path is defined and (kubeconfig_local_path | length > 0)

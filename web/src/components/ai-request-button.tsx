@@ -8,7 +8,6 @@ import type { AIService } from "@/lib/types";
 import { authHeaders } from "@/lib/client-auth";
 import { button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
-import { useDialogA11y } from "@/lib/use-dialog-a11y";
 import { cn } from "@/lib/utils";
 
 const API = "/bff";
@@ -20,12 +19,7 @@ export function AIRequestButton({ service }: { service: AIService }) {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const dialogRef = useDialogA11y(open, () => {
-    if (!busy) setOpen(false);
-  });
-  // Unique default so a second request for the same service does not collide on
-  // the name+environment unique key (which returned a confusing 409).
-  const [name, setName] = useState(() => `${service.slug}-${Math.random().toString(36).slice(2, 7)}`);
+  const [name, setName] = useState(`${service.slug}-request`);
   const [requester, setRequester] = useState("");
   const [owner, setOwner] = useState("");
   const [workspace, setWorkspace] = useState("default");
@@ -73,7 +67,7 @@ export function AIRequestButton({ service }: { service: AIService }) {
       {open &&
         typeof document !== "undefined" &&
         createPortal(
-          <div ref={dialogRef} className="fixed inset-0 z-[70] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" role="dialog" aria-modal="true">
             <div className="absolute inset-0 bg-black/50" onClick={() => !busy && setOpen(false)} />
             <form onSubmit={submit} className="relative w-full max-w-md space-y-4 rounded-xl border border-border bg-card p-5 shadow-xl">
               <div>
@@ -86,7 +80,7 @@ export function AIRequestButton({ service }: { service: AIService }) {
               </label>
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs font-medium text-muted-foreground">Requester</span>
-                <input className={inputCls} value={requester} onChange={(e) => setRequester(e.target.value)} placeholder="you@example.com" required />
+                <input className={inputCls} value={requester} onChange={(e) => setRequester(e.target.value)} placeholder="you@example.com" />
               </label>
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs font-medium text-muted-foreground">Owner</span>

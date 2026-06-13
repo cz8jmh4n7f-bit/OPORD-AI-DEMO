@@ -1,0 +1,25 @@
+# One-time Entra->GCP Workforce Identity Federation pool (ADR-0012), modelled as a
+# OPORD stack. Run ONCE per organization; the resulting workforce_pool_id then goes
+# into the GCP provider config so `project` specs can grant access to Entra groups.
+#
+#   opord stack create -f examples/wif-pool.yaml --dry-run
+#
+# Prereqs (see docs/runbooks/gcp-entra-workforce-federation.md):
+#   - An Entra app registration emitting the groups claim, with a client secret and
+#     redirect URI https://auth.cloud.google/signin-callback.
+#   - GCP roles/iam.workforcePoolAdmin on the organization.
+#
+# ⚠️ entra_client_secret is sensitive - fill it from your Entra app at apply time;
+#    do NOT commit a real secret to the repo.
+name: wif-pool
+environment: dev
+provider: gcp-dev
+spec:
+  module_dir: modules/gcp-workforce-pool
+  variables:
+    org_id: "693991132817"
+    entra_tenant_id: "<entra-tenant-id>"
+    entra_client_id: "<entra-app-client-id>"
+    entra_client_secret: "<entra-app-client-secret>"
+    # pool_id: opord-entra            # default
+    # provider_id: entra-oidc         # default

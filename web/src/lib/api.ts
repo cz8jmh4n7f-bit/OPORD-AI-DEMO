@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import type { Account, AIAccessPolicy, AIAuditEvent, AIBudget, AIInstance, AIModelCatalogItem, AIProvider, AIQuota, AIService, AIUsageRecord, APIGateway, Blueprint, Cache, CDN, Cert, Cluster, ClusterNode, ComplianceScorecard, CostReport, Database, DNSZone, Environment, FinOpsReport, FunctionResource, Job, LoadBalancer, Project, Provider, Queue, QueueJob, Request, S3Bucket, Secret, Stack, Table, VM } from "./types";
+import type { Account, AIAccessPolicy, AIAuditEvent, AIBudget, AIInstance, AIInvite, AIModelCatalogItem, AIOrgUser, AIProvider, AIQuota, AIService, AIUsageRecord, AIWorkspace, AIWorkspaceAccess, APIGateway, Blueprint, Cache, CDN, Cert, Cluster, ClusterNode, ComplianceScorecard, CostReport, Database, DNSZone, Environment, FinOpsReport, FunctionResource, Job, LoadBalancer, MCPGrant, MCPServer, Project, Provider, Queue, QueueJob, Request, S3Bucket, Secret, Stack, Table, VM } from "./types";
 
 // Base URL of the OPORD API. Server components read OPORD_API_URL; the browser
 // can use NEXT_PUBLIC_API_URL. Falls back to the dev default.
@@ -68,6 +68,43 @@ export async function fetchAIServices(): Promise<AIService[]> {
   } catch {
     return [];
   }
+}
+
+// Agent & MCP governance (migration 00022).
+export async function fetchMCPServers(): Promise<MCPServer[]> {
+  try {
+    return await get<MCPServer[]>("/api/v1/ai/mcp/servers");
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchMCPGrants(): Promise<MCPGrant[]> {
+  try {
+    return await get<MCPGrant[]>("/api/v1/ai/mcp/grants");
+  } catch {
+    return [];
+  }
+}
+
+// AI org administration (ADR-0022). Parameterized by the governable provider name.
+// These deliberately do NOT swallow errors (unlike list fetchers) - the admin page
+// surfaces a real "admin not available / key invalid" message instead of an empty
+// table, so a 401 from a non-admin key reads correctly.
+export async function fetchAIOrgUsers(provider: string): Promise<AIOrgUser[]> {
+  return get<AIOrgUser[]>(`/api/v1/ai/admin/${encodeURIComponent(provider)}/users`);
+}
+
+export async function fetchAIWorkspaces(provider: string): Promise<AIWorkspace[]> {
+  return get<AIWorkspace[]>(`/api/v1/ai/admin/${encodeURIComponent(provider)}/workspaces`);
+}
+
+export async function fetchAIInvites(provider: string): Promise<AIInvite[]> {
+  return get<AIInvite[]>(`/api/v1/ai/admin/${encodeURIComponent(provider)}/invites`);
+}
+
+export async function fetchAIWorkspaceAccess(provider: string, workspaceID: string): Promise<AIWorkspaceAccess[]> {
+  return get<AIWorkspaceAccess[]>(`/api/v1/ai/admin/${encodeURIComponent(provider)}/workspaces/${encodeURIComponent(workspaceID)}/access`);
 }
 
 export async function fetchAIRequests(): Promise<Request[]> {

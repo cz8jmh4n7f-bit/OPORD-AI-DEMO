@@ -1,0 +1,13 @@
+# Managed Redis on AWS ElastiCache (kind=cache). Needs private subnets
+# (subnet_ids) from the provider config or the spec.
+#   opord cache create -f examples/cache-aws.yaml [--dry-run]
+name: sessions
+provider: aws-eu
+environment: dev
+spec:
+  name: opord-sessions
+  engine_version: "7.1"
+  node_type: cache.t4g.micro
+  num_cache_nodes: 1
+  at_rest_encryption: true
+  in_transit_encryption: true

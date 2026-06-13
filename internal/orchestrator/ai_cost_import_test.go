@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
-	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/providers"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
+	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/providers"
 )
 
 // FindAIUsageRecordByImportKey completes the fakeAIQuerier for the import path
@@ -64,16 +64,22 @@ func TestImportAnthropicCosts(t *testing.T) {
 	}))
 	defer srv.Close()
 	q.provider.Config = []byte(`{"base_url":"` + srv.URL + `"}`)
-	svc := New(q, providers.NewRegistry(), fakeAISecretReader{"opord/ai/anthropic-main": {"api_key": "sk-ant-admin-test"}}, nil, BootstrapConfig{})
+	// Two-credential layout (ADR-0022): the secret carries BOTH the inference key
+	// (api_key - what check/sync use) and the admin key. The import must pick the
+	// admin one.
+	svc := New(q, providers.NewRegistry(), fakeAISecretReader{"opord/ai/anthropic-main": {
+		"api_key":       "sk-ant-api03-inference",
+		"admin_api_key": "sk-ant-admin-test",
+	}}, nil, BootstrapConfig{})
 
 	res, err := svc.ImportAnthropicCosts(context.Background(), AnthropicCostImportInput{ProviderName: "anthropic-main"})
 	if err != nil {
 		t.Fatalf("ImportAnthropicCosts: %v", err)
 	}
 
-	// Request shape.
+	// Request shape - and the ADMIN key chosen over the inference key.
 	if gotKey != "sk-ant-admin-test" {
-		t.Fatalf("x-api-key = %q, want admin key", gotKey)
+		t.Fatalf("x-api-key = %q, want the admin key (admin_api_key preferred)", gotKey)
 	}
 	if gotVer != "2023-06-01" {
 		t.Fatalf("anthropic-version = %q", gotVer)

@@ -1,0 +1,27 @@
+# Secure-VPC test (account factory's L4), modelled as a standalone OPORD stack.
+#
+#   opord stack create -f examples/secure-vpc.yaml          # provision
+#   opord stack status  vpctest                             # vpc_id / subnet_ids
+#   opord stack destroy vpctest --yes                       # tear down
+#
+# What it creates (in the account `provider` resolves to): a /22 VPC with
+# az_count private-by-default /24 subnets, an internet gateway + route table, a
+# LOCKED default security group (deny-all), and VPC Flow Logs to CloudWatch. Same
+# topology as the account factory's L4 (modules/aws-secure-vpc), but with a PLAIN
+# provider (no cross-account assume_role) so it runs directly in one account.
+#
+# Cost: ~$0 - VPC/subnets/IGW/route-tables/SG are free; Flow Logs with no traffic
+# are negligible. No NAT gateways / VPC endpoints / EIPs.
+#
+# In the real account factory, vpc_cidr is allocated atomically from the Vault
+# CIDR pool by internal/ipam; here it is passed explicitly.
+name: vpctest
+environment: dev
+provider: aws-eu
+spec:
+  module_dir: modules/examples/secure-vpc
+  variables:
+    region: eu-central-1
+    name: opord-vpctest
+    vpc_cidr: 10.20.0.0/22
+    az_count: 3

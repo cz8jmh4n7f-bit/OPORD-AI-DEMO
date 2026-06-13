@@ -16,6 +16,7 @@ import (
 
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/aiproviders"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/aiproviders/anthropic"
+	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/aiproviders/litellm"
 	aimock "github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/aiproviders/mock"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/aiproviders/openai"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/config"
@@ -67,6 +68,7 @@ func run() error {
 	aimock.Register(aiReg)
 	openai.Register(aiReg)
 	anthropic.Register(aiReg)
+	litellm.Register(aiReg)
 
 	resolver := creds.NewResolver(cfg.VaultAddr, cfg.VaultToken, cfg.VaultKVMount, logger)
 	if pass := creds.StateEncryptionPassphrase(context.Background(), resolver); pass != "" {

@@ -133,6 +133,18 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* A barely-there brand warmth in the dark console: one fixed radial glow from
+   the top-right so large empty areas don't read as a flat void. Decorative only
+   (non-repeating, fixed) - content contrast is unaffected. */
+.dark body {
+  background-image: radial-gradient(
+    55rem 36rem at 88% -8%,
+    rgb(242 106 33 / 0.05),
+    transparent 70%
+  );
+  background-attachment: fixed;
+}
+
 /* WCAG 2.3.3 - respect prefers-reduced-motion: collapse transitions/animations
   to near-instant for users who opt out of motion (spinners, pulse dots,
    hover-lifts, backdrop transitions). */

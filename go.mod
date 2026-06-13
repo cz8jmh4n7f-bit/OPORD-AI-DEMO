@@ -3,7 +3,7 @@ module github.com/cz8jmh4n7f-bit/opord-ai-demo
 go 1.25.0
 
 // Dependencies are resolved by `go mod tidy` as packages are imported.
-// Core direct deps:
+// Planned direct deps (see docs/adr/0001-tech-stack.md):
 //   github.com/go-chi/chi/v5      - HTTP router
 //   github.com/jackc/pgx/v5       - Postgres driver
 //   github.com/riverqueue/river   - job queue

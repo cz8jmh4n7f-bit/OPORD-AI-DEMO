@@ -9,15 +9,13 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"net/url"
-	"strings"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/auth"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/jobs"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/models"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/orchestrator"
-	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // JobLister reads the durable job queue (River). Optional: when nil, the queue
@@ -128,6 +126,15 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/ai/models", s.listAIModels)
 			r.Get("/ai/renewals", s.listAIRenewals)
 			r.Get("/ai/audit", s.listAIAudit)
+			// AI org administration reads (ADR-0022).
+			r.Get("/ai/admin/{name}/users", s.listAIOrgUsers)
+			r.Get("/ai/admin/{name}/workspaces", s.listAIWorkspaces)
+			r.Get("/ai/admin/{name}/invites", s.listAIInvites)
+			r.Get("/ai/admin/{name}/workspaces/{wsID}/access", s.listAIWorkspaceAccess)
+			// Agent & MCP governance reads + the authorize enforcement check.
+			r.Get("/ai/mcp/servers", s.listMCPServers)
+			r.Get("/ai/mcp/grants", s.listMCPGrants)
+			r.Get("/ai/mcp/authorize", s.authorizeMCP)
 		})
 
 		// Writes: operator and up.
@@ -188,14 +195,25 @@ func (s *Server) Routes() http.Handler {
 			r.Post("/ai/requests/{name}/approve", s.approveAIRequest)
 			r.Post("/ai/requests/{name}/reject", s.rejectAIRequest)
 			r.Post("/ai/instances/{id}/revoke", s.revokeAIInstance)
+			r.Post("/ai/instances/reap-expired", s.reapExpiredAIInstances)
+			// Agent & MCP governance writes.
+			r.Post("/ai/mcp/servers", s.registerMCPServer)
+			r.Delete("/ai/mcp/servers/{name}", s.deleteMCPServer)
+			r.Post("/ai/mcp/grants", s.grantMCPAccess)
+			r.Post("/ai/mcp/grants/{id}/revoke", s.revokeMCPGrant)
 			r.Post("/ai/budgets", s.createAIBudget)
-			r.Delete("/ai/budgets/{id}", s.deleteAIBudget)
 			r.Post("/ai/quotas", s.createAIQuota)
-			r.Delete("/ai/quotas/{id}", s.deleteAIQuota)
 			r.Post("/ai/policies", s.createAIPolicy)
-			r.Delete("/ai/policies/{id}", s.deleteAIPolicy)
 			r.Post("/ai/usage/import/openai", s.importOpenAIUsage)
 			r.Post("/ai/usage/import/anthropic", s.importAnthropicUsage)
+			// AI org administration writes (ADR-0022): invite/role/workspace/access.
+			r.Post("/ai/admin/{name}/invites", s.inviteAIOrgUser)
+			r.Post("/ai/admin/{name}/users/{userID}/role", s.setAIOrgRole)
+			r.Delete("/ai/admin/{name}/users/{userID}", s.removeAIOrgUser)
+			r.Post("/ai/admin/{name}/workspaces", s.createAIWorkspace)
+			r.Post("/ai/admin/{name}/workspaces/{wsID}/archive", s.archiveAIWorkspace)
+			r.Post("/ai/admin/{name}/workspaces/{wsID}/members", s.grantAIWorkspaceAccess)
+			r.Delete("/ai/admin/{name}/workspaces/{wsID}/members/{userID}", s.removeAIWorkspaceMember)
 			r.Post("/ai/gateway/openai/responses", s.gatewayOpenAIResponses)
 			r.Post("/environments", s.createEnvironment)
 			r.Delete("/environments/{name}", s.destroyEnvironment)
@@ -266,7 +284,7 @@ func (s *Server) listClusters(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getCluster(w http.ResponseWriter, r *http.Request) {
-	name := pathParam(r, "name")
+	name := chi.URLParam(r, "name")
 	env := r.URL.Query().Get("env")
 	if env == "" {
 		env = "dev"
@@ -285,7 +303,7 @@ func (s *Server) getCluster(w http.ResponseWriter, r *http.Request) {
 // can take many minutes - runs in the background; status flows destroying ->
 // destroyed/failed.
 func (s *Server) destroyCluster(w http.ResponseWriter, r *http.Request) {
-	name := pathParam(r, "name")
+	name := chi.URLParam(r, "name")
 	env := r.URL.Query().Get("env")
 	if env == "" {
 		env = "dev"
@@ -312,7 +330,7 @@ type scaleClusterReq struct {
 
 // scaleCluster changes a cluster's worker count and re-provisions (day-2).
 func (s *Server) scaleCluster(w http.ResponseWriter, r *http.Request) {
-	name := pathParam(r, "name")
+	name := chi.URLParam(r, "name")
 	env := r.URL.Query().Get("env")
 	if env == "" {
 		env = "dev"
@@ -405,23 +423,9 @@ func writeErr(w http.ResponseWriter, status int, err error) {
 	// A destroyed resource keeps its row (a tombstone), so reusing its name needs a
 	// Remove first - say so.
 	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		switch pgErr.Code {
-		case "23505": // unique_violation
-			status = http.StatusConflict
-			err = errors.New("a resource with that name already exists in this environment - choose another name, or remove the existing one first (destroyed resources keep their name until removed)")
-		case "23514", "23502", "23503": // check / not-null / foreign-key violation
-			// A bad input value reached the DB. Return a 400 without leaking the raw
-			// SQLSTATE / constraint internals to the client.
-			status = http.StatusBadRequest
-			err = errors.New("invalid request: one or more fields have an unsupported or missing value")
-		}
-	}
-	// A pgx "no rows" lookup means the named/identified resource doesn't exist:
-	// 404, and strip the raw driver suffix so internals don't leak to the client.
-	if msg := err.Error(); strings.Contains(msg, "no rows in result set") {
-		status = http.StatusNotFound
-		err = errors.New(strings.TrimSuffix(msg, ": no rows in result set"))
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		status = http.StatusConflict
+		err = errors.New("a resource with that name already exists in this environment - choose another name, or remove the existing one first (destroyed resources keep their name until removed)")
 	}
 	writeJSON(w, status, map[string]string{"error": err.Error()})
 }
@@ -437,15 +441,4 @@ func cors(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
-}
-
-// pathParam returns a URL path parameter with percent-escapes decoded. chi
-// hands back the raw escaped segment, so a name like "a b" arrives as "a%20b"
-// and a literal-string lookup would miss - decode before use.
-func pathParam(r *http.Request, key string) string {
-	v := chi.URLParam(r, key)
-	if dec, err := url.PathUnescape(v); err == nil {
-		return dec
-	}
-	return v
 }

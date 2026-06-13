@@ -1,0 +1,14 @@
+# Standalone VM on Google Cloud (Compute Engine). The gcp-vm module ships a
+# default Ubuntu 22.04 image, so `template` is optional. SSH key optional
+# (OS Login / IAP otherwise).
+#   opord vm create -f examples/gcp-vm.yaml [--dry-run]
+name: gcp-demo
+provider: gcp-dev
+environment: dev
+spec:
+  instance_type: e2-micro      # machine type
+  count: 1
+  disk_gb: 10
+  public_ip: true
+  # ssh_public_key: "ssh-ed25519 AAAA... you@host"
+  # template: ubuntu-os-cloud/ubuntu-2204-lts   # optional image override

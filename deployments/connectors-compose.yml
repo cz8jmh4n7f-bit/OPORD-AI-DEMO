@@ -1,0 +1,85 @@
+# OPORD connector tools for local testing: GLPI (ITSM/CMDB) + Graylog (SIEM).
+# Heavy stack - run only when exercising the connectors.
+#
+#   docker compose -f deployments/connectors-compose.yml up -d
+#
+# Then:
+#   - GLPI:    http://localhost:8081  (first-run setup; default glpi/glpi, tech/tech…)
+#              Enable the REST API (Setup to General to API), create an App-Token
+#              and a user API token, then set OPORD_GLPI_URL/APP_TOKEN/USER_TOKEN.
+#   - Graylog: http://localhost:9001  (login admin / admin)
+#              Create a "GELF HTTP" input on 12201, then set
+#              OPORD_SIEM_URL=http://localhost:12201/gelf
+name: opord-connectors
+
+services:
+  # --- GLPI (ITSM + CMDB) ---
+  glpi-db:
+    image: mariadb:10.11
+    environment:
+      MARIADB_ROOT_PASSWORD: glpi
+      MARIADB_DATABASE: glpi
+      MARIADB_USER: glpi
+      MARIADB_PASSWORD: glpi
+    volumes:
+      - glpi_db:/var/lib/mysql
+    restart: unless-stopped
+
+  glpi:
+    image: diouxx/glpi
+    depends_on:
+      - glpi-db
+    environment:
+      TIMEZONE: Europe/Kyiv
+    ports:
+      - "8081:80"
+    volumes:
+      - glpi_data:/var/www/html/glpi
+    restart: unless-stopped
+
+  # --- Graylog (SIEM) ---
+  mongodb:
+    image: mongo:6.0
+    volumes:
+      - graylog_mongo:/data/db
+    restart: unless-stopped
+
+  opensearch:
+    image: opensearchproject/opensearch:2.15.0
+    environment:
+      - discovery.type=single-node
+      - plugins.security.disabled=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - bootstrap.memory_lock=true
+      - "DISABLE_INSTALL_DEMO_CONFIG=true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - graylog_os:/usr/share/opensearch/data
+    restart: unless-stopped
+
+  graylog:
+    image: graylog/graylog:6.0
+    depends_on:
+      - mongodb
+      - opensearch
+    environment:
+      # Demo creds: password "admin" (sha256). Change for anything real.
+      GRAYLOG_PASSWORD_SECRET: "opord-graylog-demo-secret-please-change"
+      GRAYLOG_ROOT_PASSWORD_SHA2: "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918"
+      GRAYLOG_HTTP_EXTERNAL_URI: "http://localhost:9001/"
+      GRAYLOG_MONGODB_URI: "mongodb://mongodb:27017/graylog"
+      GRAYLOG_ELASTICSEARCH_HOSTS: "http://opensearch:9200"
+    ports:
+      - "9001:9000"    # web UI
+      - "12201:12201"  # GELF TCP
+      - "12201:12201/udp"
+    restart: unless-stopped
+
+volumes:
+  glpi_db:
+  glpi_data:
+  graylog_mongo:
+  graylog_os:

@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"time"
+
+	"github.com/go-chi/chi/v5"
 )
 
 // listProviderBillingScopes lists the billing scopes (Azure MCA invoice sections)
@@ -12,7 +14,7 @@ import (
 // the billing API is unreachable / SP lacks access) it returns the error and the
 // frontend falls back to manual entry.
 func (s *Server) listProviderBillingScopes(w http.ResponseWriter, r *http.Request) {
-	name := pathParam(r, "name")
+	name := chi.URLParam(r, "name")
 
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()

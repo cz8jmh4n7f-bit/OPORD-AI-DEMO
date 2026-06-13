@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/models"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/orchestrator"
 )
@@ -74,7 +75,7 @@ func (s *Server) listProjects(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getProject(w http.ResponseWriter, r *http.Request) {
-	name := pathParam(r, "name")
+	name := chi.URLParam(r, "name")
 	env := r.URL.Query().Get("env")
 	if env == "" {
 		env = "dev"
@@ -130,7 +131,7 @@ type setMembersReq struct {
 // setProjectMembers replaces the project's member list and re-provisions (the
 // day-2 add/remove member action).
 func (s *Server) setProjectMembers(w http.ResponseWriter, r *http.Request) {
-	name := pathParam(r, "name")
+	name := chi.URLParam(r, "name")
 	env := r.URL.Query().Get("env")
 	if env == "" {
 		env = "dev"
@@ -148,7 +149,7 @@ func (s *Server) setProjectMembers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) destroyProject(w http.ResponseWriter, r *http.Request) {
-	name := pathParam(r, "name")
+	name := chi.URLParam(r, "name")
 	env := r.URL.Query().Get("env")
 	if env == "" {
 		env = "dev"

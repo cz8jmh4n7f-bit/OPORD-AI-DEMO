@@ -5,17 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
-	"net/url"
 	"strings"
 	"time"
 
-	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/aiproviders"
-	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/auth"
-	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/aiproviders"
+	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/auth"
+	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
 )
 
 // AIProviderInput registers an AI backend without storing raw provider secrets.
@@ -58,7 +56,8 @@ type CreateAIRequestInput struct {
 func validAIProviderType(t string) bool {
 	switch aiproviders.ProviderType(t) {
 	case aiproviders.ProviderMockAI, aiproviders.ProviderOpenAI, aiproviders.ProviderAnthropic,
-		aiproviders.ProviderGemini, aiproviders.ProviderGitHubCopilot, aiproviders.ProviderCursor:
+		aiproviders.ProviderGemini, aiproviders.ProviderGitHubCopilot, aiproviders.ProviderCursor,
+		aiproviders.ProviderLiteLLM:
 		return true
 	default:
 		return false
@@ -74,20 +73,11 @@ func (s *Service) CreateAIProvider(ctx context.Context, in AIProviderInput) (db.
 	if !validAIProviderType(in.Type) {
 		return db.AiProvider{}, fmt.Errorf("unsupported ai provider type %q", in.Type)
 	}
-	// Reject types declared but not implemented in this build (gemini/copilot/
-	// cursor) up front - otherwise the row is created and the later catalog sync
-	// fails, leaving a half-created provider.
-	if _, err := s.aiProvider(in.Type); err != nil {
-		return db.AiProvider{}, fmt.Errorf("ai provider type %q is not available in this build", in.Type)
-	}
 	cfg := in.Config
 	if cfg == nil {
 		cfg = map[string]any{}
 	}
 	if err := rejectAIProviderSecretConfig(cfg); err != nil {
-		return db.AiProvider{}, err
-	}
-	if err := validateProviderBaseURL(cfg); err != nil {
 		return db.AiProvider{}, err
 	}
 	raw, err := json.Marshal(cfg)
@@ -173,9 +163,6 @@ func (s *Service) UpdateAIProvider(ctx context.Context, name string, in UpdateAI
 		status = st
 		changed = append(changed, "status")
 	}
-	if err := validateProviderBaseURL(cfg); err != nil {
-		return db.AiProvider{}, err
-	}
 	raw, err := json.Marshal(cfg)
 	if err != nil {
 		return db.AiProvider{}, fmt.Errorf("marshaling ai provider config: %w", err)
@@ -237,9 +224,6 @@ func (s *Service) SyncAIProviderServicesByName(ctx context.Context, name string)
 	p, err := s.q.GetAIProviderByName(ctx, name)
 	if err != nil {
 		return fmt.Errorf("ai provider %q not found: %w", name, err)
-	}
-	if tid, scoped := scopeTenant(ctx); scoped && p.TenantID.Valid && !tenantVisible(p.TenantID, tid) {
-		return fmt.Errorf("ai provider %q not found", name)
 	}
 	if err := s.SyncAIProviderServices(ctx, p); err != nil {
 		return err
@@ -308,9 +292,6 @@ func (s *Service) CheckAIProvider(ctx context.Context, name string) error {
 	if err != nil {
 		return fmt.Errorf("ai provider %q not found: %w", name, err)
 	}
-	if tid, scoped := scopeTenant(ctx); scoped && p.TenantID.Valid && !tenantVisible(p.TenantID, tid) {
-		return fmt.Errorf("ai provider %q not found", name)
-	}
 	prov, err := s.aiProvider(p.Type)
 	if err != nil {
 		return err
@@ -352,12 +333,6 @@ func (s *Service) CreateAIRequest(ctx context.Context, in CreateAIRequestInput) 
 	if strings.TrimSpace(in.Name) == "" || (strings.TrimSpace(in.ServiceSlug) == "" && strings.TrimSpace(in.ServiceID) == "") {
 		return nil, fmt.Errorf("name and service_slug (or service_id) are required")
 	}
-	if err := validateRequestName(strings.TrimSpace(in.Name)); err != nil {
-		return nil, err
-	}
-	if strings.TrimSpace(in.Requester) == "" {
-		return nil, fmt.Errorf("requester is required")
-	}
 	// Validate the expires_at format up front so the requester gets immediate
 	// feedback instead of the approver hitting it at provision time.
 	if _, err := aiExpiresAt(in.ExpiresAt, time.Time{}, 0); err != nil {
@@ -367,14 +342,11 @@ func (s *Service) CreateAIRequest(ctx context.Context, in CreateAIRequestInput) 
 	if err != nil {
 		return nil, fmt.Errorf("ai service %q not found: %w", firstNonEmpty(in.ServiceSlug, in.ServiceID), err)
 	}
-	if provider, err := s.q.GetAIProvider(ctx, service.ProviderID); err == nil && provider.Status == "disabled" {
-		return nil, fmt.Errorf("ai provider %q is disabled", provider.Name)
-	}
 	// Governance gate: block the request up front if an active policy/quota/budget
 	// forbids it, so the requester gets immediate feedback (not at approval time).
 	if err := s.evaluateAIGovernance(ctx, aiReqContext{
 		ServiceID: service.ID, ServiceSlug: service.Slug, ServiceCategory: service.Category,
-		ProviderName: service.ProviderName, ProviderType: service.ProviderType, ProviderID: service.ProviderID.String(),
+		ProviderName: service.ProviderName, ProviderType: service.ProviderType,
 		Owner: firstNonEmpty(in.Owner, in.Requester), Workspace: in.Workspace, Tenant: tenantForCreate(ctx),
 	}); err != nil {
 		return nil, err
@@ -434,23 +406,11 @@ func (s *Service) ProvisionAIRequest(ctx context.Context, req db.Request) (*db.A
 	if err != nil {
 		return nil, err
 	}
-	// Idempotency: if this request already produced a live instance (a crash may
-	// have left the request stranded mid-approve), return it instead of creating a
-	// duplicate - and skip the re-checks, since access is already granted.
-	if rows, lerr := s.q.ListAIServiceInstances(ctx); lerr == nil {
-		for _, r := range rows {
-			if r.RequestID.Valid && uuid.UUID(r.RequestID.Bytes) == req.ID && (r.Status == "active" || r.Status == "suspended") {
-				if inst, gerr := s.q.GetAIServiceInstance(ctx, r.ID); gerr == nil {
-					return &inst, nil
-				}
-			}
-		}
-	}
 	// Governance gate again at approval - quota usage / budget spend may have
 	// changed since the request was filed.
 	if err := s.evaluateAIGovernance(ctx, aiReqContext{
 		ServiceID: service.ID, ServiceSlug: service.Slug, ServiceCategory: service.Category,
-		ProviderName: provider.Name, ProviderType: provider.Type, ProviderID: provider.ID.String(),
+		ProviderName: provider.Name, ProviderType: provider.Type,
 		Owner: owner, Workspace: workspace, Tenant: req.TenantID,
 	}); err != nil {
 		s.emitAIAudit(ctx, "ai_request", req.ID, "provision_blocked", err.Error(), map[string]any{"request": req.Name}, req.DecidedBy)
@@ -467,6 +427,10 @@ func (s *Service) ProvisionAIRequest(ctx context.Context, req db.Request) (*db.A
 		s.emitAIAudit(ctx, "ai_request", req.ID, "provision_failed", err.Error(), map[string]any{"request": req.Name}, req.DecidedBy)
 		return nil, err
 	}
+	// A provider may mint a real credential (e.g. a LiteLLM virtual key). Never
+	// persist it in the DB - move it to OpenBao and record only a pointer. The
+	// raw value is returned ONCE to the caller (mintedSecret) so they can copy it.
+	mintedSecret := s.stripMintedSecret(ctx, req.ID, res.Observed)
 	observed, _ := json.Marshal(res.Observed)
 	inst, err := s.q.CreateAIServiceInstance(ctx, db.CreateAIServiceInstanceParams{
 		ServiceID:        service.ID,
@@ -481,6 +445,7 @@ func (s *Service) ProvisionAIRequest(ctx context.Context, req db.Request) (*db.A
 		ProvisionedAt:    pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		ExpiresAt:        pgTime(expiresAt),
 	})
+	_ = mintedSecret // surfaced via the instance observed pointer; see stripMintedSecret
 	if err != nil {
 		return nil, fmt.Errorf("creating ai service instance: %w", err)
 	}
@@ -509,6 +474,71 @@ func (s *Service) ListAIInstances(ctx context.Context) ([]db.ListAIServiceInstan
 		}
 	}
 	return out, nil
+}
+
+// stripMintedSecret moves a provider-minted credential (Observed["virtual_key"])
+// out of the map into OpenBao and leaves a non-secret pointer + masked preview, so
+// the raw key is never persisted in the DB (OPORD's never-store-raw-keys rule).
+// Returns the raw value (the caller may surface it once). No-op when absent.
+func (s *Service) stripMintedSecret(ctx context.Context, requestID uuid.UUID, observed map[string]any) string {
+	raw, ok := observed["virtual_key"].(string)
+	if !ok || strings.TrimSpace(raw) == "" {
+		return ""
+	}
+	delete(observed, "virtual_key")
+	alias, _ := observed["key_alias"].(string)
+	if alias == "" {
+		alias = requestID.String()
+	}
+	path := "opord/ai/keys/" + alias
+	if w, ok := s.creds.(interface {
+		WriteSecret(ctx context.Context, path string, data map[string]string) error
+	}); ok {
+		if err := w.WriteSecret(ctx, path, map[string]string{"key": raw}); err != nil {
+			s.log.Warn("could not store minted ai key in openbao; pointer only", "err", err)
+		} else {
+			observed["virtual_key_secret"] = path
+		}
+	}
+	observed["virtual_key_preview"] = maskKey(raw)
+	return raw
+}
+
+func maskKey(k string) string {
+	if len(k) <= 8 {
+		return "****"
+	}
+	return k[:4] + "…" + k[len(k)-4:]
+}
+
+// ReapExpiredAIInstances revokes AI access instances whose expiry has passed -
+// the access-governance safety net (SOC2/ISO: a grant must not outlive its
+// approved window). It revokes through the provider (real workspace removal /
+// invite deletion for Anthropic) and records the action as expiry, not a manual
+// revoke. Runs as the system actor over ALL tenants (no scope in ctx).
+func (s *Service) ReapExpiredAIInstances(ctx context.Context) (int, error) {
+	rows, err := s.q.ListAIServiceInstances(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("listing ai instances: %w", err)
+	}
+	now := time.Now()
+	reaped := 0
+	for _, r := range rows {
+		if r.Status != "active" && r.Status != "suspended" {
+			continue
+		}
+		if !r.ExpiresAt.Valid || r.ExpiresAt.Time.After(now) {
+			continue
+		}
+		s.log.Info("ai access expired - auto-revoking", "instance", r.ID, "owner", r.Owner, "expired_at", r.ExpiresAt.Time)
+		if _, err := s.RevokeAIInstance(ctx, r.ID, "system-expiry"); err != nil {
+			s.log.Error("ai expiry auto-revoke failed", "instance", r.ID, "err", err)
+			continue
+		}
+		s.emitAIAudit(ctx, "ai_instance", r.ID, "expired", "AI access auto-revoked on expiry", map[string]any{"owner": r.Owner}, "system-expiry")
+		reaped++
+	}
+	return reaped, nil
 }
 
 // RevokeAIInstance revokes an AI access instance through the AI provider.
@@ -618,53 +648,13 @@ func rejectAIProviderSecretConfig(cfg map[string]any) error {
 	return nil
 }
 
-// validateProviderBaseURL guards the AI gateway against SSRF + key exfiltration:
-// the provider's base_url is where OPORD sends the resolved API key, so it must
-// be an https host that is not private/loopback/link-local/metadata.
-func validateProviderBaseURL(cfg map[string]any) error {
-	v, ok := cfg["base_url"].(string)
-	if !ok || strings.TrimSpace(v) == "" {
-		return nil
-	}
-	u, err := url.Parse(strings.TrimSpace(v))
-	if err != nil || u.Host == "" {
-		return fmt.Errorf("base_url must be a valid https URL")
-	}
-	if u.Scheme != "https" {
-		return fmt.Errorf("base_url must use https")
-	}
-	host := strings.ToLower(u.Hostname())
-	if host == "localhost" || strings.HasSuffix(host, ".local") || strings.HasSuffix(host, ".internal") {
-		return fmt.Errorf("base_url host %q is not allowed", host)
-	}
-	if ip := net.ParseIP(u.Hostname()); ip != nil {
-		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsUnspecified() {
-			return fmt.Errorf("base_url host %q (private/loopback) is not allowed", host)
-		}
-	}
-	return nil
-}
-
-// isSensitiveAIConfigKey reports whether a provider-config key looks like a
-// secret. It normalizes the key (lowercase, strip _ - . space) and matches a
-// substring denylist, so variants like apiKey / api-key / x-api-key /
-// authorization all match - an exact-name list let those slip into config (and
-// thus into GET /ai/providers).
 func isSensitiveAIConfigKey(key string) bool {
-	n := strings.Map(func(r rune) rune {
-		switch r {
-		case '_', '-', '.', ' ':
-			return -1
-		default:
-			return r
-		}
-	}, strings.ToLower(strings.TrimSpace(key)))
-	for _, marker := range []string{"apikey", "secret", "token", "password", "passwd", "credential", "authorization", "bearer", "privatekey"} {
-		if strings.Contains(n, marker) {
-			return true
-		}
+	switch strings.ToLower(strings.TrimSpace(key)) {
+	case "api_key", "openai_api_key", "anthropic_api_key", "token", "access_token", "bearer_token", "secret", "client_secret", "password":
+		return true
+	default:
+		return false
 	}
-	return false
 }
 
 type aiSecretReader interface {

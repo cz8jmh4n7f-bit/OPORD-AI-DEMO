@@ -537,7 +537,8 @@ export function CatalogBrowser({ providers }: { providers: Provider[] }) {
         <EmptyState
           icon={Server}
           title="No providers registered"
-          description="Register a backend first - then approved services appear here with provider compatibility and guardrails."
+          description="Connect a backend (Proxmox, vSphere, AWS, Azure, GCP) - then approved services appear here with provider compatibility and guardrails."
+          action={{ href: "/providers", label: "Connect a provider" }}
         />
       </Card>
     );

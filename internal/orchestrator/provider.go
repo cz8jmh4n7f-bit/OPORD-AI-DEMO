@@ -8,9 +8,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/models"
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // ProviderInput describes a provider instance to register.

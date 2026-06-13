@@ -29,24 +29,24 @@ type Querier interface {
 	CreateCluster(ctx context.Context, arg CreateClusterParams) (Cluster, error)
 	CreateEnvironment(ctx context.Context, arg CreateEnvironmentParams) (Environment, error)
 	CreateJob(ctx context.Context, arg CreateJobParams) (Job, error)
+	CreateMCPGrant(ctx context.Context, arg CreateMCPGrantParams) (McpGrant, error)
+	CreateMCPServer(ctx context.Context, arg CreateMCPServerParams) (McpServer, error)
 	CreateProvider(ctx context.Context, arg CreateProviderParams) (Provider, error)
 	CreateRequest(ctx context.Context, arg CreateRequestParams) (Request, error)
 	CreateResource(ctx context.Context, arg CreateResourceParams) (Resource, error)
 	CreateTenant(ctx context.Context, name string) (Tenant, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DecideRequest(ctx context.Context, arg DecideRequestParams) (Request, error)
-	DeleteAIAccessPolicy(ctx context.Context, id uuid.UUID) error
-	DeleteAIBudget(ctx context.Context, id uuid.UUID) error
 	DeleteAIProvider(ctx context.Context, id uuid.UUID) error
-	DeleteAIQuota(ctx context.Context, id uuid.UUID) error
 	DeleteAIServiceInstancesByProvider(ctx context.Context, providerID uuid.UUID) error
 	DeleteCluster(ctx context.Context, id uuid.UUID) error
 	DeleteEnvironment(ctx context.Context, id uuid.UUID) error
+	DeleteMCPServer(ctx context.Context, id uuid.UUID) error
 	DeleteNodesByCluster(ctx context.Context, clusterID uuid.UUID) error
 	DeleteProvider(ctx context.Context, id uuid.UUID) error
 	DeleteResource(ctx context.Context, id uuid.UUID) error
-	ExpireAIServiceInstances(ctx context.Context) ([]AiServiceInstance, error)
 	FindAIUsageRecordByImportKey(ctx context.Context, arg FindAIUsageRecordByImportKeyParams) (AiUsageRecord, error)
+	FindActiveMCPGrant(ctx context.Context, arg FindActiveMCPGrantParams) (McpGrant, error)
 	GetAIBudget(ctx context.Context, id uuid.UUID) (AiBudget, error)
 	GetAIProvider(ctx context.Context, id uuid.UUID) (AiProvider, error)
 	GetAIProviderByName(ctx context.Context, name string) (AiProvider, error)
@@ -60,6 +60,7 @@ type Querier interface {
 	GetEnvironment(ctx context.Context, id uuid.UUID) (Environment, error)
 	GetEnvironmentByName(ctx context.Context, arg GetEnvironmentByNameParams) (Environment, error)
 	GetJob(ctx context.Context, id uuid.UUID) (Job, error)
+	GetMCPServerByName(ctx context.Context, name string) (McpServer, error)
 	GetProvider(ctx context.Context, id uuid.UUID) (Provider, error)
 	GetProviderByName(ctx context.Context, name string) (Provider, error)
 	GetRequest(ctx context.Context, id uuid.UUID) (Request, error)
@@ -86,6 +87,8 @@ type Querier interface {
 	ListClustersByProvider(ctx context.Context, providerID uuid.UUID) ([]Cluster, error)
 	ListEnvironments(ctx context.Context) ([]Environment, error)
 	ListJobsByCluster(ctx context.Context, clusterID pgtype.UUID) ([]Job, error)
+	ListMCPGrants(ctx context.Context) ([]ListMCPGrantsRow, error)
+	ListMCPServers(ctx context.Context) ([]McpServer, error)
 	ListNodesByCluster(ctx context.Context, clusterID uuid.UUID) ([]Node, error)
 	ListProviders(ctx context.Context) ([]Provider, error)
 	ListRequests(ctx context.Context) ([]Request, error)
@@ -96,6 +99,7 @@ type Querier interface {
 	MarkJobFinished(ctx context.Context, arg MarkJobFinishedParams) (Job, error)
 	MarkJobRunning(ctx context.Context, arg MarkJobRunningParams) (Job, error)
 	RevokeAIServiceInstance(ctx context.Context, id uuid.UUID) (AiServiceInstance, error)
+	RevokeMCPGrant(ctx context.Context, id uuid.UUID) (McpGrant, error)
 	SetBackupResult(ctx context.Context, arg SetBackupResultParams) (Backup, error)
 	SetRequestResource(ctx context.Context, arg SetRequestResourceParams) (Request, error)
 	SetRequestTicket(ctx context.Context, arg SetRequestTicketParams) (Request, error)
@@ -105,6 +109,7 @@ type Querier interface {
 	UpdateClusterState(ctx context.Context, arg UpdateClusterStateParams) (Cluster, error)
 	UpdateClusterStatus(ctx context.Context, arg UpdateClusterStatusParams) (Cluster, error)
 	UpdateEnvironmentStatus(ctx context.Context, arg UpdateEnvironmentStatusParams) (Environment, error)
+	UpdateMCPServerStatus(ctx context.Context, arg UpdateMCPServerStatusParams) (McpServer, error)
 	UpdateNodeStatus(ctx context.Context, arg UpdateNodeStatusParams) (Node, error)
 	UpdateProvider(ctx context.Context, arg UpdateProviderParams) (Provider, error)
 	UpdateProviderHealth(ctx context.Context, arg UpdateProviderHealthParams) (Provider, error)

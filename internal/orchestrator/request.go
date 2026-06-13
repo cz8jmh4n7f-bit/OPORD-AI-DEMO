@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
@@ -28,18 +27,6 @@ var validRequestKinds = map[string]bool{
 	"ai_service": true,
 }
 
-// Request names ride in URL paths (/requests/{name}/approve) and become
-// resource names, so they must be plain slugs - not emails, spaces, or
-// arbitrary text.
-var requestNameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,62}$`)
-
-func validateRequestName(name string) error {
-	if !requestNameRe.MatchString(name) {
-		return fmt.Errorf("invalid request name %q: use lowercase letters, digits, and hyphens (max 63 chars)", name)
-	}
-	return nil
-}
-
 // CreateRequest records a pending request and (if a ticketer is wired) opens a
 // GLPI ticket for it. Provisioning happens only after ApproveRequest.
 func (s *Service) CreateRequest(ctx context.Context, in CreateRequestInput) (*db.Request, error) {
@@ -48,9 +35,6 @@ func (s *Service) CreateRequest(ctx context.Context, in CreateRequestInput) (*db
 	}
 	if !validRequestKinds[in.Kind] {
 		return nil, fmt.Errorf("invalid request kind %q (want vm|cluster|database|stack|environment|project|account|ai_service)", in.Kind)
-	}
-	if err := validateRequestName(in.Name); err != nil {
-		return nil, err
 	}
 	env := in.Environment
 	if env == "" {
@@ -107,11 +91,7 @@ func (s *Service) ApproveRequest(ctx context.Context, name, env, approvedBy stri
 	if tid, scoped := scopeTenant(ctx); scoped && !tenantVisible(req.TenantID, tid) {
 		return fmt.Errorf("request %q (env %q) not found", name, env)
 	}
-	// Allow re-approving a request stranded in "approved" with no resource (a crash
-	// mid-provision orphaned it); provisioning is idempotent, so this recovers it
-	// instead of leaving it permanently stuck.
-	stuck := req.Status == "approved" && req.ResourceRef == ""
-	if req.Status != "pending_approval" && !stuck {
+	if req.Status != "pending_approval" {
 		return fmt.Errorf("request %q is %q, not pending approval", name, req.Status)
 	}
 

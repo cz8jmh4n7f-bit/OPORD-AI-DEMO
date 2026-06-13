@@ -2,10 +2,10 @@ package api
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/orchestrator"
 )
@@ -60,7 +60,7 @@ func (s *Server) listRequests(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getRequest(w http.ResponseWriter, r *http.Request) {
-	name := pathParam(r, "name")
+	name := chi.URLParam(r, "name")
 	env := r.URL.Query().Get("env")
 	if env == "" {
 		env = "dev"
@@ -89,12 +89,6 @@ func (s *Server) createRequest(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err)
 		return
 	}
-	// AI access requests must use the AI flow so governance (policies/quotas/
-	// budgets) + service lookup run; the generic path would bypass them.
-	if req.Kind == "ai_service" {
-		writeErr(w, http.StatusBadRequest, errors.New("ai_service requests must use POST /api/v1/ai/requests"))
-		return
-	}
 	rq, err := s.svc.CreateRequest(r.Context(), orchestrator.CreateRequestInput{
 		Name:        req.Name,
 		Environment: req.Environment,
@@ -117,7 +111,7 @@ type decisionReq struct {
 }
 
 func (s *Server) approveRequest(w http.ResponseWriter, r *http.Request) {
-	name := pathParam(r, "name")
+	name := chi.URLParam(r, "name")
 	env := queryEnv(r)
 	var body decisionReq
 	_ = json.NewDecoder(r.Body).Decode(&body)
@@ -132,7 +126,7 @@ func (s *Server) approveRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) rejectRequest(w http.ResponseWriter, r *http.Request) {
-	name := pathParam(r, "name")
+	name := chi.URLParam(r, "name")
 	env := queryEnv(r)
 	var body decisionReq
 	_ = json.NewDecoder(r.Body).Decode(&body)

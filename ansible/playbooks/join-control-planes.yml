@@ -1,0 +1,61 @@
+---
+# Phase 2, step 3: join additional control-plane nodes (skipped if only one CP).
+- name: Generate join command from init control plane
+  hosts: control_plane_init
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Generate join command
+      ansible.builtin.command:
+        cmd: kubeadm token create --print-join-command
+      register: kubeadm_join_cmd
+      changed_when: false
+
+    - name: Upload certificates
+      ansible.builtin.command:
+        cmd: kubeadm init phase upload-certs --upload-certs
+      register: kubeadm_upload_certs
+      changed_when: false
+
+    - name: Set join command facts
+      ansible.builtin.set_fact:
+        k8s_join_command: "{{ kubeadm_join_cmd.stdout }}"
+        k8s_certificate_key: "{{ kubeadm_upload_certs.stdout_lines[-1] }}"
+
+- name: Join additional control plane nodes
+  hosts: control_plane_join
+  become: true
+  gather_facts: true
+  any_errors_fatal: true
+  serial: 1
+
+  tasks:
+    - name: Check if already joined
+      ansible.builtin.stat:
+        path: /etc/kubernetes/kubelet.conf
+      register: kubelet_conf
+
+    - name: Join as control plane
+      ansible.builtin.command:
+        cmd: >-
+          {{ hostvars[groups['control_plane_init'][0]]['k8s_join_command'] }}
+          --control-plane
+          --certificate-key {{ hostvars[groups['control_plane_init'][0]]['k8s_certificate_key'] }}
+      when: not kubelet_conf.stat.exists
+
+    - name: Create .kube directory
+      ansible.builtin.file:
+        path: "/home/{{ admin_user }}/.kube"
+        state: directory
+        owner: "{{ admin_user }}"
+        group: "{{ admin_group }}"
+        mode: "0755"
+
+    - name: Copy kubeconfig
+      ansible.builtin.copy:
+        src: /etc/kubernetes/admin.conf
+        dest: "/home/{{ admin_user }}/.kube/config"
+        remote_src: true
+        owner: "{{ admin_user }}"
+        group: "{{ admin_group }}"
+        mode: "0600"

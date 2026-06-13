@@ -19,7 +19,7 @@ export default async function AIUsagePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="AI Usage" description="Usage records metered or imported from AI providers." />
+      <PageHeader title="AI Usage" description="Mock usage records for the AI Governance MVP." />
 
       <div className="grid gap-3 sm:grid-cols-3">
         <StatCard icon={BrainCircuit} label="Usage records" value={records.length} hint="Imported or mock records" />
@@ -60,17 +60,8 @@ export default async function AIUsagePage() {
                     <td className="px-5 py-3">
                       <span className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">{r.metric}</span>
                     </td>
-                    <td className="px-5 py-3 text-right tabular-nums">
-                      {r.quantity.toLocaleString()}
-                      {r.unit && r.unit !== r.metric ? ` ${r.unit}` : ""}
-                    </td>
-                    <td className="px-5 py-3 text-right tabular-nums">
-                      {(r.raw as Record<string, unknown> | undefined)?.source === "not_imported" ? (
-                        <span className="text-muted-foreground">not imported</span>
-                      ) : (
-                        usd(r.costUsd)
-                      )}
-                    </td>
+                    <td className="px-5 py-3 text-right tabular-nums">{r.quantity.toLocaleString()} {r.unit}</td>
+                    <td className="px-5 py-3 text-right tabular-nums">{usd(r.costUsd)}</td>
                     <td className="px-5 py-3 text-muted-foreground">{formatDate(r.periodStart)} - {formatDate(r.periodEnd)}</td>
                   </tr>
                 ))}

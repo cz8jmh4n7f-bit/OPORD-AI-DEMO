@@ -1,0 +1,43 @@
+# Example OPORD Azure subscription factory spec - ADR-0009.
+#
+#   opord account create -f examples/account-azure.yaml --dry-run
+#   opord account create -f examples/account-azure.yaml
+#
+# V1 ships adopt mode only (the user's tenant has a single MCA subscription
+# and the provisioning SP has Invoice Section Owner on its billing scope,
+# which is what create mode needs). Switch to create when an upgrade or a
+# scratch test tenant becomes available.
+name: aztest-platform
+environment: dev
+provider: Azure
+spec:
+  csa_id: aztest-platform
+  cloud_name: dev
+  owner: vovchenkovm@icloud.com
+
+  # --- Azure-specific (ADR-0009) ---
+  azure_mode: adopt
+  azure_subscription_id: "1656bed6-86f4-42bc-8bc9-ecc528338e4a"
+  azure_location: westeurope
+
+  # Allowed Locations policy.
+  azure_allowed_locations:
+    - westeurope
+    - northeurope
+
+  # Secure VNet /22. Operator-supplied for V1 (Azure-aware IPAM is a follow-up).
+  azure_vnet_cidr: "10.20.0.0/22"
+  azure_allow_inbound_cidrs:
+    - "0.0.0.0/0"   # dev default; tighten for prod
+
+  # Defender for Cloud - Free tier only (CSPM, $0/mo). Opt into Standard
+  # per workload type once you understand the per-resource pricing.
+  # azure_defender_plans_standard: ["VirtualMachines", "KeyVaults"]
+
+  # Per-layer skips (uncomment to bypass a layer on re-runs).
+  # skip:
+  #   azure_key_vault: true
+  #   azure_rbac: true
+  #   azure_secure_vnet: true
+  #   azure_security_hardening: true
+  #   azure_policy: true

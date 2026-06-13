@@ -50,9 +50,6 @@ type Config struct {
 	AzureClientSecret string
 
 	AuthEnabled bool
-	// SeedDemoUsers, when true, idempotently creates the demo admin + viewer
-	// users (with fixed, documented API keys) on API start. Demo only.
-	SeedDemoUsers bool
 }
 
 // Load reads configuration from environment variables.
@@ -95,8 +92,7 @@ func Load() (*Config, error) {
 		AzureClientID:     os.Getenv("AZURE_CLIENT_ID"),
 		AzureClientSecret: os.Getenv("AZURE_CLIENT_SECRET"),
 
-		AuthEnabled:   getenv("OPORD_AUTH_ENABLED", "false") == "true",
-		SeedDemoUsers: getenv("OPORD_SEED_DEMO_USERS", "false") == "true",
+		AuthEnabled: getenv("OPORD_AUTH_ENABLED", "false") == "true",
 	}
 	return cfg, nil
 }

@@ -1,20 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { setAIMode, useAIMode } from "@/lib/ai-mode";
+import { useAIMode } from "@/lib/ai-mode";
 
-// AINeonSign is the topbar "AI" mode switch, styled like a motel sign: a dim,
-// dead neon tube when off; a glowing orange tube when on. Clicking it enters or
-// leaves the AI workspace (which filters the nav to AI-only) and routes to the
-// matching home so you land where the menu now points.
+// AINeonSign is the topbar switch between the two workspaces, styled like a
+// motel sign: a dim, dead neon tube on the infrastructure side; a glowing orange
+// tube inside the AI workspace. It is pure navigation - the lit state derives
+// from the route, so the sign, the nav, and the page can never disagree.
 export function AINeonSign() {
   const on = useAIMode();
   const router = useRouter();
 
   function toggle() {
-    const next = !on;
-    setAIMode(next);
-    router.push(next ? "/ai/overview" : "/");
+    router.push(on ? "/" : "/ai/overview");
   }
 
   return (
@@ -22,8 +20,8 @@ export function AINeonSign() {
       type="button"
       onClick={toggle}
       aria-pressed={on}
-      aria-label={on ? "AI mode on - switch back to infrastructure" : "Switch to AI mode"}
-      title={on ? "AI mode - click to exit" : "Enter AI mode"}
+      aria-label={on ? "AI workspace - switch back to infrastructure" : "Switch to the AI workspace"}
+      title={on ? "AI workspace - click for infrastructure" : "Open the AI workspace"}
       className={`neon-ai ${on ? "neon-ai-on" : "neon-ai-off"}`}
     >
       AI

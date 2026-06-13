@@ -5,26 +5,17 @@ import { usePathname } from "next/navigation";
 import { TriangleAlert } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
-import { ComingSoon } from "@/components/coming-soon";
-import { useAIMode } from "@/lib/ai-mode";
 
 // Routes rendered WITHOUT the console shell (sidebar/topbar) - e.g. the public
-// marketing landing. Everything else gets the full app shell.
+// marketing landing. Everything else gets the full app shell. Both workspaces
+// (infrastructure + AI governance) are first-class - the nav follows the route.
 const bareRoutes = ["/landing"];
 
 export function LayoutShell({ apiOk, children }: { apiOk: boolean; children: ReactNode }) {
   const pathname = usePathname();
-  const ai = useAIMode();
   const bare = bareRoutes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
   if (bare) return <>{children}</>;
-
-  // opord-ai (AI-first) build: only /login and (when the "AI" sign is on) the
-  // /ai/* workspace are shown. Everything else - the cloud / on-prem console - is
-  // still in development, so infra pages (e.g. /access) can't be reached by URL
-  // either: they stay the placeholder regardless of the AI toggle.
-  const isAIRoute = pathname === "/ai" || pathname.startsWith("/ai/");
-  const gated = pathname !== "/login" && !(ai && isAIRoute);
 
   return (
     <div className="flex min-h-screen">
@@ -34,7 +25,7 @@ export function LayoutShell({ apiOk, children }: { apiOk: boolean; children: Rea
       >
         Skip to content
       </a>
-      {!gated && <Sidebar />}
+      <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar />
         {!apiOk && (
@@ -50,7 +41,7 @@ export function LayoutShell({ apiOk, children }: { apiOk: boolean; children: Rea
           </div>
         )}
         <main id="main" tabIndex={-1} className="flex-1 p-4 outline-none md:p-6 lg:p-8">
-          {gated ? <ComingSoon /> : children}
+          {children}
         </main>
       </div>
     </div>

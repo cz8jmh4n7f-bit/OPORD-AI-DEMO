@@ -51,6 +51,66 @@ export interface AIProvider {
   updatedAt: string;
 }
 
+// AI org administration (ADR-0022): real org/workspace/role state from a
+// governable AI provider (Anthropic via the admin key).
+export interface AIOrgUser {
+  id: string;
+  email: string;
+  name?: string;
+  role: string;
+  addedAt?: string;
+}
+
+export interface AIWorkspace {
+  id: string;
+  name: string;
+  createdAt?: string;
+  archivedAt?: string;
+  archived: boolean;
+}
+
+export interface AIInvite {
+  inviteId: string;
+  email: string;
+  role: string;
+  status: string;
+  invitedAt?: string;
+  expiresAt?: string;
+}
+
+export interface AIWorkspaceAccess {
+  userId: string;
+  email?: string;
+  orgRole?: string;
+  workspaceRole: string;
+  inherited: boolean;
+}
+
+// Agent & MCP governance (migration 00022): a registry of approved MCP servers
+// teams may use, with per-owner grants and an authorize enforcement check.
+export interface MCPServer {
+  id: string;
+  name: string;
+  transport: string;
+  endpoint: string;
+  description: string;
+  riskTier: string;
+  allowedTools: string[];
+  status: string;
+  createdAt: string;
+}
+
+export interface MCPGrant {
+  id: string;
+  server: string;
+  riskTier: string;
+  owner: string;
+  status: string;
+  expiresAt?: string;
+  grantedBy?: string;
+  createdAt: string;
+}
+
 export interface AIService {
   id: string;
   providerId: string;

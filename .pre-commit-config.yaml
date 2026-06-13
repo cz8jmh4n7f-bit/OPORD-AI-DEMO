@@ -1,0 +1,47 @@
+# OPORD pre-commit hooks - IaC + Go hygiene and secret/compliance scanning.
+#   pip install pre-commit && pre-commit install
+#   pre-commit run --all-files
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-added-large-files
+
+  # OpenTofu/Terraform formatting + per-module validate (works on .tf).
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.92.0
+    hooks:
+      - id: terraform_fmt
+      - id: terraform_validate
+      - id: terraform_tflint
+
+  # Static security analysis of the IaC (deny-by-default findings gate CI).
+  - repo: https://github.com/bridgecrewio/checkov
+    rev: "3.2.0"
+    hooks:
+      - id: checkov
+        args: ["--directory", "modules", "--quiet", "--compact"]
+
+  # Secret scanning - never commit creds (OPORD keeps secrets in Vault).
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks
+
+  # Go hygiene (local hooks; require a Go toolchain).
+  - repo: local
+    hooks:
+      - id: gofmt
+        name: gofmt
+        entry: gofmt -l -w
+        language: system
+        types: [go]
+      - id: go-vet
+        name: go vet
+        entry: bash -c 'go vet ./...'
+        language: system
+        pass_filenames: false
+        types: [go]

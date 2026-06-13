@@ -30,7 +30,7 @@ export function AddAIGovernanceButton({ kind }: { kind: ModalKind }) {
   const [serviceSlug, setServiceSlug] = useState("");
   const [metric, setMetric] = useState("tokens");
   const [enforcement, setEnforcement] = useState("warn");
-  const [rules, setRules] = useState('{"effect":"deny","providers":[],"categories":[],"services":[],"owner_domains":["contractor.com"]}');
+  const [rules, setRules] = useState('{"allowed_models":[],"requires_justification":true,"max_expiration_days":90}');
 
   const labels = {
     budget: "Add AI budget",
@@ -135,11 +135,6 @@ export function AddAIGovernanceButton({ kind }: { kind: ModalKind }) {
                   <label className="flex flex-col gap-1.5">
                     <span className="text-xs font-medium text-muted-foreground">Rules JSON</span>
                     <textarea className={textCls} value={rules} onChange={(e) => setRules(e.target.value)} />
-                    <span className="text-xs text-muted-foreground">
-                      Deny-list rule: effect (deny|allow) + selectors providers / categories / services / owner_domains
-                      (arrays). Non-empty selectors must all match; empty = any. A deny rule with NO selectors blocks
-                      every request and is rejected.
-                    </span>
                   </label>
                 </>
               )}
@@ -211,29 +206,24 @@ export function ImportOpenAIUsageButton() {
   );
 }
 
-export function GatewaySmokeButton({ provider }: { provider?: string }) {
+export function GatewaySmokeButton() {
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
 
   async function run() {
-    if (!provider) return;
     setBusy(true);
     try {
-      const res = await fetch(`${API}/api/v1/ai/gateway/openai/responses?provider=${encodeURIComponent(provider)}`, {
+      const res = await fetch(`${API}/api/v1/ai/gateway/openai/responses?provider=openai-main`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: "gpt-5-mini",
           input: "Reply with one short sentence confirming the OPORD AI gateway works.",
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        // The gateway relays the upstream body verbatim, so data.error can be
-        // OpenAI's error OBJECT ({error:{message}}), not OPORD's plain string.
-        const msg =
-          typeof data.error === "string" ? data.error : data.error?.message ?? `Request failed (${res.status})`;
-        toast({ variant: "error", title: "Gateway failed", description: msg });
+        toast({ variant: "error", title: "Gateway failed", description: data.error ?? `Request failed (${res.status})` });
         return;
       }
       toast({ variant: "success", title: "Gateway response received", description: data.output_text ?? data.id ?? "OpenAI response proxied through OPORD." });
@@ -245,13 +235,7 @@ export function GatewaySmokeButton({ provider }: { provider?: string }) {
   }
 
   return (
-    <button
-      type="button"
-      onClick={run}
-      disabled={busy || !provider}
-      title={provider ? undefined : "Add an OpenAI provider to use the gateway"}
-      className={cn(button({ size: "md" }), (busy || !provider) && "opacity-70")}
-    >
+    <button type="button" onClick={run} disabled={busy} className={cn(button({ size: "md" }), busy && "opacity-70")}>
       {busy ? <Loader2 className="size-4 animate-spin" /> : <WandSparkles className="size-4" />}
       Smoke test gateway
     </button>

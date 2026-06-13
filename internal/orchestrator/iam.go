@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/auth"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
-	"github.com/google/uuid"
 )
 
 // CreateTenant adds an organization/team boundary.
@@ -55,42 +55,6 @@ func (s *Service) CreateUser(ctx context.Context, email, tenantName, role string
 	}
 	s.log.Info("user created", "email", u.Email, "tenant", tenantName, "role", role)
 	return u, plain, nil
-}
-
-// EnsureSeedUser idempotently provisions a tenant + a user with a FIXED API key.
-// It powers the demo's RBAC-on-by-default mode: a no-op if the user already
-// exists, so it is safe to run on every API start. The plaintext key is
-// well-known and documented in the README - it is for LOCAL DEMO USE ONLY and
-// must be rotated (or this path disabled via OPORD_SEED_DEMO_USERS=false) for any
-// real deployment.
-func (s *Service) EnsureSeedUser(ctx context.Context, email, tenantName, role, plainKey string) (created bool, err error) {
-	if email == "" || plainKey == "" {
-		return false, fmt.Errorf("seed user email and key are required")
-	}
-	if !auth.ValidRole(role) {
-		return false, fmt.Errorf("invalid role %q (want admin|operator|viewer)", role)
-	}
-	// Tenant: reuse if present, else create.
-	t, terr := s.q.GetTenantByName(ctx, tenantName)
-	if terr != nil {
-		t, terr = s.q.CreateTenant(ctx, tenantName)
-		if terr != nil {
-			return false, fmt.Errorf("ensuring tenant %q: %w", tenantName, terr)
-		}
-	}
-	// User: skip if it already exists (idempotent across restarts).
-	if _, gerr := s.q.GetUserByEmail(ctx, email); gerr == nil {
-		return false, nil
-	}
-	if _, cerr := s.q.CreateUser(ctx, db.CreateUserParams{
-		Email:      email,
-		TenantID:   t.ID,
-		Role:       role,
-		ApiKeyHash: auth.HashKey(plainKey),
-	}); cerr != nil {
-		return false, fmt.Errorf("creating seed user %q: %w", email, cerr)
-	}
-	return true, nil
 }
 
 // ListUsers returns all users with their tenant name.

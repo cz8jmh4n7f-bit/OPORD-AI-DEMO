@@ -1,0 +1,5 @@
+# Kubernetes sysctl parameters
+# Managed by Ansible (OPORD) - do not edit manually
+{% for key, value in k8s_sysctl_params.items() %}
+{{ key }} = {{ value }}
+{% endfor %}

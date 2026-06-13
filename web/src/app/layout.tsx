@@ -28,9 +28,9 @@ export const metadata: Metadata = {
     "Declarative infrastructure operations: provision Kubernetes clusters across vSphere, Proxmox, and more.",
 };
 
-// Set the theme class and AI-mode attribute before paint to avoid a flash of the
-// wrong theme / a nav-section pop when AI mode was persisted on.
-const themeScript = `(function(){try{var t=localStorage.getItem('theme');var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;if(d){document.documentElement.classList.add('dark');}var a=localStorage.getItem('ai-mode');document.documentElement.setAttribute('data-ai',a==='on'?'on':'off');}catch(e){}})();`;
+// Set the theme class before paint to avoid a flash of the wrong theme. (The AI
+// workspace is route-scoped - see lib/ai-mode.ts - so no persisted mode here.)
+const themeScript = `(function(){try{var t=localStorage.getItem('theme');var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;if(d){document.documentElement.classList.add('dark');}}catch(e){}})();`;
 
 export default async function RootLayout({
   children,

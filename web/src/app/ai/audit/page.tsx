@@ -1,4 +1,5 @@
 import { History } from "lucide-react";
+import { AuditExportButton } from "@/components/audit-export";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
@@ -12,7 +13,9 @@ export default async function AIAuditPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="AI Audit" description="Durable audit events for AI provider, request, instance, and revoke actions." />
+      <PageHeader title="AI Audit" description="Durable audit events for AI provider, request, instance, and revoke actions.">
+        <AuditExportButton events={events} />
+      </PageHeader>
 
       {events.length === 0 ? (
         <Card>
@@ -55,10 +58,6 @@ export default async function AIAuditPage() {
             </table>
           </div>
         </Card>
-      )}
-
-      {events.length >= 100 && (
-        <p className="text-xs text-muted-foreground">Showing the most recent 100 events.</p>
       )}
     </div>
   );

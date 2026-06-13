@@ -1,37 +1,13 @@
-// AI-mode store - the topbar "AI" neon sign flips this. Mirrors the theme
-// toggle: the source of truth lives in the DOM (`data-ai` on <html>), read as an
-// external store rather than mirrored into React state via an effect. An inline
-// script in the root layout applies the persisted value before paint (no flash),
-// and a MutationObserver drives re-renders. Persisted to localStorage so the
-// chosen workspace survives reloads.
+// The AI workspace is ROUTE-scoped: any /ai/* page is "in" it, everything else
+// is the infrastructure workspace. Both surfaces are first-class (one product,
+// two catalogs) - the topbar AI sign is a navigation switch between them, not a
+// feature gate. Deriving the state from the URL keeps the nav, the sign, and the
+// page content coherent by construction (no persisted mode to drift out of sync).
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { usePathname } from "next/navigation";
 
-function subscribe(onChange: () => void) {
-  const observer = new MutationObserver(onChange);
-  observer.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ["data-ai"],
-  });
-  return () => observer.disconnect();
-}
-
-function getSnapshot() {
-  return document.documentElement.getAttribute("data-ai") === "on";
-}
-
-/** useAIMode returns whether the AI workspace mode is active. */
+/** useAIMode reports whether the current route is inside the AI workspace. */
 export function useAIMode(): boolean {
-  return useSyncExternalStore(subscribe, getSnapshot, () => false);
-}
-
-/** setAIMode lights or dims the sign; the MutationObserver drives re-renders. */
-export function setAIMode(on: boolean) {
-  document.documentElement.setAttribute("data-ai", on ? "on" : "off");
-  try {
-    localStorage.setItem("ai-mode", on ? "on" : "off");
-  } catch {
-    /* ignore */
-  }
+  return (usePathname() ?? "").startsWith("/ai");
 }

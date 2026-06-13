@@ -1,0 +1,10 @@
+# Message queue on Azure Service Bus (kind=queue).
+# A Service Bus namespace + one queue is created in its own resource group.
+# The connection string (SAS key) is never persisted by OPORD.
+#   opord queue create -f examples/queue-azure.yaml [--dry-run]
+name: jobs
+provider: Azure
+environment: dev
+spec:
+  name: opordjobs
+  dlq_enabled: true       # dead-lettering on message expiration

@@ -1,0 +1,11 @@
+# Message queue on AWS SQS (kind=queue).
+#   opord queue create -f examples/queue-aws.yaml [--dry-run]
+name: jobs
+provider: aws-eu
+environment: dev
+spec:
+  name: opord-jobs
+  fifo: false
+  dlq_enabled: true       # auto-creates a sibling dead-letter queue + redrive
+  dlq_max_receive_count: 5
+  visibility_timeout_seconds: 30
