@@ -84,6 +84,39 @@ func TestOpenAIImplementsAdminProvisioner(t *testing.T) {
 	var _ aiproviders.AdminProvisioner = Provider{}
 }
 
+// TestOpenAIValidateRoutesByKeyType checks the admin-key-aware credential check:
+// an admin key (sk-admin-) validates against /v1/organization/* (where it has
+// access), while a project key (sk-proj-) routes to /v1/models. The fake server
+// 403s /v1/models, so the admin key passes and the project key fails - proving the
+// routing is by key prefix, not a misleading 403 for valid admin keys.
+func TestOpenAIValidateRoutesByKeyType(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/v1/organization/") {
+			_, _ = w.Write([]byte(`{"data":[]}`))
+			return
+		}
+		w.WriteHeader(http.StatusForbidden) // /v1/models is forbidden for admin keys
+	}))
+	t.Cleanup(srv.Close)
+	p := Provider{client: srv.Client()}
+
+	admin := aiproviders.CredentialRequest{
+		Credentials: map[string]string{"admin_api_key": "sk-admin-xyz", "api_key": "sk-admin-xyz"},
+		Config:      map[string]any{"base_url": srv.URL},
+	}
+	if err := p.ValidateCredentials(context.Background(), admin); err != nil {
+		t.Fatalf("admin key must validate against the admin endpoint (green), got %v", err)
+	}
+
+	project := aiproviders.CredentialRequest{
+		Credentials: map[string]string{"api_key": "sk-proj-abc"},
+		Config:      map[string]any{"base_url": srv.URL},
+	}
+	if err := p.ValidateCredentials(context.Background(), project); err == nil {
+		t.Fatal("project key must route to /v1/models (403 here) and fail")
+	}
+}
+
 func TestIsAlreadyExists(t *testing.T) {
 	if !isAlreadyExists(&adminAPIError{StatusCode: http.StatusConflict, Body: "anything"}) {
 		t.Error("409 Conflict must be treated as already-exists")

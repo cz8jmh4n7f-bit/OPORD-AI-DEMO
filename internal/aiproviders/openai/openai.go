@@ -35,10 +35,21 @@ func (Provider) Type() aiproviders.ProviderType { return aiproviders.ProviderOpe
 func (p Provider) ValidateCredentials(ctx context.Context, req aiproviders.CredentialRequest) error {
 	key := apiKey(req.Credentials, req.Config)
 	if key == "" {
-		return fmt.Errorf("openai api key missing (set secret_ref to an OpenBao secret with api_key, or OPENAI_API_KEY)")
+		key = strings.TrimSpace(req.Credentials["admin_api_key"])
 	}
-	baseURL := baseURL(req.Config, "https://api.openai.com")
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(baseURL, "/")+"/v1/models", nil)
+	if key == "" {
+		return fmt.Errorf("openai api key missing (set secret_ref to an OpenBao secret with api_key or admin_api_key, or OPENAI_API_KEY)")
+	}
+	base := strings.TrimRight(baseURL(req.Config, "https://api.openai.com"), "/")
+	// OpenAI admin keys (sk-admin-…) are scoped to the Administration API and CANNOT
+	// call /v1/models, so validate them against a lightweight admin endpoint instead -
+	// a valid admin key (the one used for Org Admin) then checks GREEN rather than a
+	// misleading 403. Project/standard keys validate against /v1/models.
+	checkPath, scope := "/v1/models", "model access"
+	if strings.HasPrefix(key, "sk-admin-") {
+		checkPath, scope = "/v1/organization/projects?limit=1", "org admin"
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, base+checkPath, nil)
 	if err != nil {
 		return err
 	}
@@ -48,6 +59,9 @@ func (p Provider) ValidateCredentials(ctx context.Context, req aiproviders.Crede
 		return fmt.Errorf("openai credential check failed: %w", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return fmt.Errorf("openai credential check returned %s for %s - an admin key (sk-admin-…) only reaches /v1/organization/*, a project key (sk-proj-…) reaches /v1/models; store the matching key as admin_api_key / api_key", resp.Status, scope)
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("openai credential check returned %s", resp.Status)
 	}
