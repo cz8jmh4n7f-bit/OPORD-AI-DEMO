@@ -3,8 +3,19 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
-import { Archive, Loader2, Plus, Trash2, UserCog, UserPlus, Users } from "lucide-react";
-import type { AIInvite, AIOrgUser, AIWorkspace, AIWorkspaceAccess } from "@/lib/types";
+import { Archive, Gauge, KeyRound, Loader2, Plus, Settings2, ShieldCheck, Trash2, UserCog, UserPlus, Users } from "lucide-react";
+import type {
+  AIInvite,
+  AIOrgUser,
+  AIProjectAPIKey,
+  AIProjectDataRetention,
+  AIProjectHostedToolPermissions,
+  AIProjectModelPermissions,
+  AIProjectRateLimit,
+  AIProjectSpendAlert,
+  AIWorkspace,
+  AIWorkspaceAccess,
+} from "@/lib/types";
 import { authHeaders } from "@/lib/client-auth";
 import { button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -388,7 +399,12 @@ function WorkspaceRow({ provider, providerType, workspace, users }: { provider: 
           </button>
         </div>
       </div>
-      {open && <WorkspaceMembers provider={provider} providerType={providerType} workspace={workspace} users={users} />}
+      {open && (
+        <div className="mt-3 space-y-3">
+          <WorkspaceMembers provider={provider} providerType={providerType} workspace={workspace} users={users} />
+          {providerType === "openai" && <OpenAIProjectControls provider={provider} workspace={workspace} />}
+        </div>
+      )}
     </div>
   );
 }
@@ -519,6 +535,344 @@ function WorkspaceMembers({ provider, providerType, workspace, users }: { provid
       {grantable.length === 0 && (
         <p className="text-xs text-muted-foreground">No grantable users - invite one, or org admins already have inherited access.</p>
       )}
+    </div>
+  );
+}
+
+function OpenAIProjectControls({ provider, workspace }: { provider: string; workspace: AIWorkspace }) {
+  const { busy, run } = useAction();
+  const { prompt, confirm } = useConfirm();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [apiKeys, setAPIKeys] = useState<AIProjectAPIKey[]>([]);
+  const [rateLimits, setRateLimits] = useState<AIProjectRateLimit[]>([]);
+  const [modelPerms, setModelPerms] = useState<AIProjectModelPermissions>({ mode: "allow_list", modelIds: [] });
+  const [toolPerms, setToolPerms] = useState<AIProjectHostedToolPermissions>({
+    codeInterpreter: false,
+    fileSearch: false,
+    imageGeneration: false,
+    mcp: false,
+    webSearch: false,
+  });
+  const [retention, setRetention] = useState<AIProjectDataRetention>({ type: "organization_default" });
+  const [alerts, setAlerts] = useState<AIProjectSpendAlert[]>([]);
+  const [modelText, setModelText] = useState("");
+  const [alertUSD, setAlertUSD] = useState("");
+  const [alertRecipients, setAlertRecipients] = useState("");
+
+  const base = api(provider, `/workspaces/${encodeURIComponent(workspace.id)}`);
+
+  const load = useCallback(() => {
+    void (async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const [keysRes, limitsRes, modelsRes, toolsRes, retentionRes, alertsRes] = await Promise.all([
+          fetch(`${base}/api-keys`, { headers: authHeaders() }),
+          fetch(`${base}/rate-limits`, { headers: authHeaders() }),
+          fetch(`${base}/model-permissions`, { headers: authHeaders() }),
+          fetch(`${base}/tool-permissions`, { headers: authHeaders() }),
+          fetch(`${base}/data-retention`, { headers: authHeaders() }),
+          fetch(`${base}/spend-alerts`, { headers: authHeaders() }),
+        ]);
+        const firstBad = [keysRes, limitsRes, modelsRes, toolsRes, retentionRes, alertsRes].find((r) => !r.ok);
+        if (firstBad) {
+          const data = await firstBad.json().catch(() => ({}));
+          throw new Error(data.error ?? `OpenAI controls unavailable (${firstBad.status})`);
+        }
+        const nextModels = (await modelsRes.json()) as AIProjectModelPermissions;
+        setAPIKeys((await keysRes.json()) as AIProjectAPIKey[]);
+        setRateLimits((await limitsRes.json()) as AIProjectRateLimit[]);
+        setModelPerms(nextModels);
+        setModelText((nextModels.modelIds ?? []).join(", "));
+        setToolPerms((await toolsRes.json()) as AIProjectHostedToolPermissions);
+        setRetention((await retentionRes.json()) as AIProjectDataRetention);
+        setAlerts((await alertsRes.json()) as AIProjectSpendAlert[]);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [base]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function saveModels(e: React.FormEvent) {
+    e.preventDefault();
+    const modelIds = modelText.split(",").map((m) => m.trim()).filter(Boolean);
+    const ok = await run("Save model permissions", () =>
+      fetch(`${base}/model-permissions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ mode: modelPerms.mode, modelIds }),
+      }),
+    );
+    if (ok) load();
+  }
+
+  async function clearModels() {
+    const typed = await prompt({
+      title: "Clear model permissions?",
+      message: `This removes the model allowlist/denylist on ${workspace.name}. Type the project name to confirm.`,
+      requireValue: workspace.name,
+      confirmLabel: "Clear",
+      danger: true,
+    });
+    if (typed == null) return;
+    const ok = await run("Clear model permissions", () =>
+      fetch(`${base}/model-permissions`, { method: "DELETE", headers: authHeaders() }),
+    );
+    if (ok) load();
+  }
+
+  async function saveTools(e: React.FormEvent) {
+    e.preventDefault();
+    const ok = await run("Save tool permissions", () =>
+      fetch(`${base}/tool-permissions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(toolPerms),
+      }),
+    );
+    if (ok) load();
+  }
+
+  async function saveRetention(e: React.FormEvent) {
+    e.preventDefault();
+    // Data retention is a compliance-relevant policy change; confirm before the
+    // one-click apply so it isn't changed by accident.
+    if (
+      !(await confirm({
+        title: "Change data retention?",
+        message: `Set data retention to "${retention.type}" on ${workspace.name}? This changes how long OpenAI keeps this project's data.`,
+        danger: true,
+        confirmLabel: "Apply",
+      }))
+    )
+      return;
+    const ok = await run("Save data retention", () =>
+      fetch(`${base}/data-retention`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(retention),
+      }),
+    );
+    if (ok) load();
+  }
+
+  async function deleteKey(key: AIProjectAPIKey) {
+    const typed = await prompt({
+      title: `Delete API key ${key.name || key.id}?`,
+      message: "This permanently deletes the OpenAI project API key. Type the key id to confirm.",
+      requireValue: key.id,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (typed == null) return;
+    const ok = await run("Delete API key", () =>
+      fetch(`${base}/api-keys/${encodeURIComponent(key.id)}`, { method: "DELETE", headers: authHeaders() }),
+    );
+    if (ok) load();
+  }
+
+  async function createAlert(e: React.FormEvent) {
+    e.preventDefault();
+    const recipients = alertRecipients.split(",").map((x) => x.trim()).filter(Boolean);
+    const ok = await run("Create spend alert", () =>
+      fetch(`${base}/spend-alerts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ thresholdUsd: Number(alertUSD), recipients }),
+      }),
+    );
+    if (ok) {
+      setAlertUSD("");
+      setAlertRecipients("");
+      load();
+    }
+  }
+
+  async function deleteAlert(alert: AIProjectSpendAlert) {
+    const typed = await prompt({
+      title: "Delete spend alert?",
+      message: "Type the alert id to confirm.",
+      requireValue: alert.id,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (typed == null) return;
+    const ok = await run("Delete spend alert", () =>
+      fetch(`${base}/spend-alerts/${encodeURIComponent(alert.id)}`, { method: "DELETE", headers: authHeaders() }),
+    );
+    if (ok) load();
+  }
+
+  if (loading) {
+    return <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">Loading OpenAI project controls...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+        OpenAI project controls unavailable: {error}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 rounded-lg border border-border bg-muted/30 p-3">
+      <div className="flex items-center gap-2">
+        <Settings2 className="size-4 text-muted-foreground" />
+        <h3 className="text-sm font-semibold text-foreground">OpenAI project controls</h3>
+      </div>
+
+      <section className="grid gap-3 lg:grid-cols-2">
+        <form onSubmit={saveModels} className="space-y-2 rounded-lg border border-border bg-card p-3">
+          <ControlTitle icon={ShieldCheck} title="Model permissions" />
+          <select className={inputCls} value={modelPerms.mode || "allow_list"} onChange={(e) => setModelPerms({ ...modelPerms, mode: e.target.value })}>
+            <option value="allow_list">Allow list</option>
+            <option value="deny_list">Deny list</option>
+          </select>
+          <textarea
+            className="min-h-20 w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            value={modelText}
+            onChange={(e) => setModelText(e.target.value)}
+            placeholder="gpt-4.1, o4-mini"
+          />
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={clearModels} disabled={busy} className={button({ variant: "outline", size: "sm" })}>Clear</button>
+            <button type="submit" disabled={busy} className={button({ size: "sm" })}>Save</button>
+          </div>
+        </form>
+
+        <form onSubmit={saveTools} className="space-y-2 rounded-lg border border-border bg-card p-3">
+          <ControlTitle icon={Settings2} title="Hosted tools" />
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            {[
+              ["webSearch", "Web search"],
+              ["fileSearch", "File search"],
+              ["codeInterpreter", "Code interpreter"],
+              ["imageGeneration", "Image generation"],
+              ["mcp", "MCP"],
+            ].map(([key, label]) => (
+              <label key={key} className="flex items-center gap-2 rounded-md border border-border px-2 py-1.5">
+                <input
+                  type="checkbox"
+                  checked={Boolean(toolPerms[key as keyof AIProjectHostedToolPermissions])}
+                  onChange={(e) => setToolPerms({ ...toolPerms, [key]: e.target.checked })}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+          <div className="flex justify-end">
+            <button type="submit" disabled={busy} className={button({ size: "sm" })}>Save tools</button>
+          </div>
+        </form>
+      </section>
+
+      <section className="grid gap-3 lg:grid-cols-2">
+        <form onSubmit={saveRetention} className="space-y-2 rounded-lg border border-border bg-card p-3">
+          <ControlTitle icon={ShieldCheck} title="Data retention" />
+          <select className={inputCls} value={retention.type || "organization_default"} onChange={(e) => setRetention({ type: e.target.value })}>
+            <option value="organization_default">Organization default</option>
+            <option value="none">None</option>
+            <option value="zero_data_retention">Zero data retention</option>
+            <option value="modified_abuse_monitoring">Modified abuse monitoring</option>
+            <option value="enhanced_zero_data_retention">Enhanced zero data retention</option>
+            <option value="enhanced_modified_abuse_monitoring">Enhanced modified abuse monitoring</option>
+          </select>
+          <div className="flex justify-end">
+            <button type="submit" disabled={busy} className={button({ size: "sm" })}>Save retention</button>
+          </div>
+        </form>
+
+        <div className="space-y-2 rounded-lg border border-border bg-card p-3">
+          <ControlTitle icon={KeyRound} title={`API keys (${apiKeys.length})`} />
+          {apiKeys.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No project API keys reported.</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {apiKeys.map((key) => (
+                <li key={key.id} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="min-w-0 truncate">
+                    <span className="font-medium">{key.name || key.id}</span>
+                    <span className="ml-2 font-mono text-xs text-muted-foreground">{key.redactedValue}</span>
+                  </span>
+                  <button type="button" onClick={() => deleteKey(key)} disabled={busy} className="text-xs font-medium text-danger hover:underline">
+                    Delete
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+
+      <section className="grid gap-3 lg:grid-cols-2">
+        <div className="space-y-2 rounded-lg border border-border bg-card p-3">
+          <ControlTitle icon={Gauge} title={`Rate limits (${rateLimits.length})`} />
+          {rateLimits.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No rate limits reported.</p>
+          ) : (
+            <div className="max-h-56 overflow-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-muted-foreground">
+                    <th className="py-1 font-medium">Model</th>
+                    <th className="py-1 font-medium">RPM</th>
+                    <th className="py-1 font-medium">TPM</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rateLimits.map((limit) => (
+                    <tr key={limit.id} className="border-t border-border">
+                      <td className="py-1 font-mono">{limit.model}</td>
+                      <td className="py-1">{limit.maxRequestsPer1Minute || "-"}</td>
+                      <td className="py-1">{limit.maxTokensPer1Minute || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2 rounded-lg border border-border bg-card p-3">
+          <ControlTitle icon={Gauge} title={`Spend alerts (${alerts.length})`} />
+          {alerts.length > 0 && (
+            <ul className="space-y-1.5">
+              {alerts.map((alert) => (
+                <li key={alert.id} className="flex items-center justify-between gap-2 text-sm">
+                  <span>
+                    ${(alert.thresholdCents / 100).toLocaleString()} {alert.recipients?.length ? `to ${alert.recipients.join(", ")}` : ""}
+                  </span>
+                  <button type="button" onClick={() => deleteAlert(alert)} disabled={busy} className="text-xs font-medium text-danger hover:underline">
+                    Delete
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <form onSubmit={createAlert} className="grid grid-cols-[1fr_2fr_auto] gap-2 border-t border-border pt-2">
+            <input className={inputCls} type="number" min="1" step="1" value={alertUSD} onChange={(e) => setAlertUSD(e.target.value)} placeholder="USD" required />
+            <input className={inputCls} value={alertRecipients} onChange={(e) => setAlertRecipients(e.target.value)} placeholder="emails, comma-separated" />
+            <button type="submit" disabled={busy} className={button({ size: "sm" })}>Add</button>
+          </form>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ControlTitle({ icon: Icon, title }: { icon: React.ComponentType<{ className?: string }>; title: string }) {
+  return (
+    <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+      <Icon className="size-4 text-muted-foreground" />
+      {title}
     </div>
   );
 }

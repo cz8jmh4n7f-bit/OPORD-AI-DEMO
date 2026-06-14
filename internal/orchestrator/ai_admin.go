@@ -34,6 +34,23 @@ func (s *Service) adminFor(ctx context.Context, name string) (db.AiProvider, aip
 	return p, admin, ac, nil
 }
 
+func (s *Service) projectControlsFor(ctx context.Context, name string) (db.AiProvider, aiproviders.ProjectControlsProvisioner, aiproviders.AdminContext, error) {
+	p, err := s.q.GetAIProviderByName(ctx, name)
+	if err != nil {
+		return db.AiProvider{}, nil, aiproviders.AdminContext{}, fmt.Errorf("ai provider %q not found: %w", name, err)
+	}
+	prov, err := s.aiProvider(p.Type)
+	if err != nil {
+		return db.AiProvider{}, nil, aiproviders.AdminContext{}, err
+	}
+	controls, ok := prov.(aiproviders.ProjectControlsProvisioner)
+	if !ok {
+		return db.AiProvider{}, nil, aiproviders.AdminContext{}, fmt.Errorf("ai provider %q (%s) does not support project controls", p.Name, p.Type)
+	}
+	ac := aiproviders.AdminContext{Credentials: s.aiCredentials(ctx, p), Config: aiProviderConfig(p)}
+	return p, controls, ac, nil
+}
+
 // resolveUserRef accepts EITHER a provider user id (e.g. user_…) or an email, and
 // returns the canonical user id. Convenience so callers (and older UIs) can pass a
 // human-readable email; an empty/already-id value is returned unchanged.
@@ -86,6 +103,54 @@ func (s *Service) AIWorkspaceAccess(ctx context.Context, provider, workspaceID s
 		return nil, err
 	}
 	return admin.EffectiveWorkspaceAccess(ctx, ac, workspaceID)
+}
+
+func (s *Service) ListAIProjectAPIKeys(ctx context.Context, provider, projectID string) ([]aiproviders.ProjectAPIKey, error) {
+	_, controls, ac, err := s.projectControlsFor(ctx, provider)
+	if err != nil {
+		return nil, err
+	}
+	return controls.ListProjectAPIKeys(ctx, ac, projectID)
+}
+
+func (s *Service) ListAIProjectRateLimits(ctx context.Context, provider, projectID string) ([]aiproviders.ProjectRateLimit, error) {
+	_, controls, ac, err := s.projectControlsFor(ctx, provider)
+	if err != nil {
+		return nil, err
+	}
+	return controls.ListProjectRateLimits(ctx, ac, projectID)
+}
+
+func (s *Service) GetAIProjectModelPermissions(ctx context.Context, provider, projectID string) (*aiproviders.ProjectModelPermissions, error) {
+	_, controls, ac, err := s.projectControlsFor(ctx, provider)
+	if err != nil {
+		return nil, err
+	}
+	return controls.GetProjectModelPermissions(ctx, ac, projectID)
+}
+
+func (s *Service) GetAIProjectHostedToolPermissions(ctx context.Context, provider, projectID string) (*aiproviders.ProjectHostedToolPermissions, error) {
+	_, controls, ac, err := s.projectControlsFor(ctx, provider)
+	if err != nil {
+		return nil, err
+	}
+	return controls.GetProjectHostedToolPermissions(ctx, ac, projectID)
+}
+
+func (s *Service) GetAIProjectDataRetention(ctx context.Context, provider, projectID string) (*aiproviders.ProjectDataRetention, error) {
+	_, controls, ac, err := s.projectControlsFor(ctx, provider)
+	if err != nil {
+		return nil, err
+	}
+	return controls.GetProjectDataRetention(ctx, ac, projectID)
+}
+
+func (s *Service) ListAIProjectSpendAlerts(ctx context.Context, provider, projectID string) ([]aiproviders.ProjectSpendAlert, error) {
+	_, controls, ac, err := s.projectControlsFor(ctx, provider)
+	if err != nil {
+		return nil, err
+	}
+	return controls.ListProjectSpendAlerts(ctx, ac, projectID)
 }
 
 // --- Writes (each audited) ---
@@ -190,5 +255,128 @@ func (s *Service) RemoveAIWorkspaceMember(ctx context.Context, provider, workspa
 		return err
 	}
 	s.emitAIAudit(ctx, "ai_provider", p.ID, "workspace_member_removed", "AI workspace member removed", map[string]any{"provider": p.Name, "workspace_id": workspaceID, "user_id": userID}, "")
+	return nil
+}
+
+func (s *Service) DeleteAIProjectAPIKey(ctx context.Context, provider, projectID, keyID string) error {
+	p, controls, ac, err := s.projectControlsFor(ctx, provider)
+	if err != nil {
+		return err
+	}
+	if err := controls.DeleteProjectAPIKey(ctx, ac, projectID, keyID); err != nil {
+		s.emitAIAudit(ctx, "ai_provider", p.ID, "project_api_key_delete_failed", err.Error(), map[string]any{"provider": p.Name, "project_id": projectID, "api_key_id": keyID}, "")
+		return err
+	}
+	s.emitAIAudit(ctx, "ai_provider", p.ID, "project_api_key_deleted", "AI project API key deleted", map[string]any{"provider": p.Name, "project_id": projectID, "api_key_id": keyID}, "")
+	return nil
+}
+
+func (s *Service) UpdateAIProjectRateLimit(ctx context.Context, provider, projectID, rateLimitID string, req aiproviders.ProjectRateLimitUpdate) (*aiproviders.ProjectRateLimit, error) {
+	p, controls, ac, err := s.projectControlsFor(ctx, provider)
+	if err != nil {
+		return nil, err
+	}
+	res, err := controls.UpdateProjectRateLimit(ctx, ac, projectID, rateLimitID, req)
+	if err != nil {
+		s.emitAIAudit(ctx, "ai_provider", p.ID, "project_rate_limit_update_failed", err.Error(), map[string]any{"provider": p.Name, "project_id": projectID, "rate_limit_id": rateLimitID}, "")
+		return nil, err
+	}
+	s.emitAIAudit(ctx, "ai_provider", p.ID, "project_rate_limit_updated", "AI project rate limit updated", map[string]any{"provider": p.Name, "project_id": projectID, "rate_limit_id": rateLimitID}, "")
+	return res, nil
+}
+
+func (s *Service) SetAIProjectModelPermissions(ctx context.Context, provider, projectID string, req aiproviders.ProjectModelPermissions) (*aiproviders.ProjectModelPermissions, error) {
+	p, controls, ac, err := s.projectControlsFor(ctx, provider)
+	if err != nil {
+		return nil, err
+	}
+	res, err := controls.SetProjectModelPermissions(ctx, ac, projectID, req)
+	if err != nil {
+		s.emitAIAudit(ctx, "ai_provider", p.ID, "project_model_permissions_update_failed", err.Error(), map[string]any{"provider": p.Name, "project_id": projectID, "mode": req.Mode, "model_ids": req.ModelIDs}, "")
+		return nil, err
+	}
+	s.emitAIAudit(ctx, "ai_provider", p.ID, "project_model_permissions_updated", "AI project model permissions updated", map[string]any{"provider": p.Name, "project_id": projectID, "mode": req.Mode, "model_ids": req.ModelIDs}, "")
+	return res, nil
+}
+
+func (s *Service) DeleteAIProjectModelPermissions(ctx context.Context, provider, projectID string) error {
+	p, controls, ac, err := s.projectControlsFor(ctx, provider)
+	if err != nil {
+		return err
+	}
+	if err := controls.DeleteProjectModelPermissions(ctx, ac, projectID); err != nil {
+		s.emitAIAudit(ctx, "ai_provider", p.ID, "project_model_permissions_delete_failed", err.Error(), map[string]any{"provider": p.Name, "project_id": projectID}, "")
+		return err
+	}
+	s.emitAIAudit(ctx, "ai_provider", p.ID, "project_model_permissions_deleted", "AI project model permissions deleted", map[string]any{"provider": p.Name, "project_id": projectID}, "")
+	return nil
+}
+
+func (s *Service) SetAIProjectHostedToolPermissions(ctx context.Context, provider, projectID string, req aiproviders.ProjectHostedToolPermissions) (*aiproviders.ProjectHostedToolPermissions, error) {
+	p, controls, ac, err := s.projectControlsFor(ctx, provider)
+	if err != nil {
+		return nil, err
+	}
+	res, err := controls.SetProjectHostedToolPermissions(ctx, ac, projectID, req)
+	if err != nil {
+		s.emitAIAudit(ctx, "ai_provider", p.ID, "project_tool_permissions_update_failed", err.Error(), map[string]any{"provider": p.Name, "project_id": projectID}, "")
+		return nil, err
+	}
+	s.emitAIAudit(ctx, "ai_provider", p.ID, "project_tool_permissions_updated", "AI project hosted tool permissions updated", map[string]any{"provider": p.Name, "project_id": projectID}, "")
+	return res, nil
+}
+
+func (s *Service) SetAIProjectDataRetention(ctx context.Context, provider, projectID string, req aiproviders.ProjectDataRetention) (*aiproviders.ProjectDataRetention, error) {
+	p, controls, ac, err := s.projectControlsFor(ctx, provider)
+	if err != nil {
+		return nil, err
+	}
+	res, err := controls.SetProjectDataRetention(ctx, ac, projectID, req)
+	if err != nil {
+		s.emitAIAudit(ctx, "ai_provider", p.ID, "project_data_retention_update_failed", err.Error(), map[string]any{"provider": p.Name, "project_id": projectID, "type": req.Type}, "")
+		return nil, err
+	}
+	s.emitAIAudit(ctx, "ai_provider", p.ID, "project_data_retention_updated", "AI project data retention updated", map[string]any{"provider": p.Name, "project_id": projectID, "type": req.Type}, "")
+	return res, nil
+}
+
+func (s *Service) CreateAIProjectSpendAlert(ctx context.Context, provider, projectID string, req aiproviders.ProjectSpendAlertInput) (*aiproviders.ProjectSpendAlert, error) {
+	p, controls, ac, err := s.projectControlsFor(ctx, provider)
+	if err != nil {
+		return nil, err
+	}
+	res, err := controls.CreateProjectSpendAlert(ctx, ac, projectID, req)
+	if err != nil {
+		s.emitAIAudit(ctx, "ai_provider", p.ID, "project_spend_alert_create_failed", err.Error(), map[string]any{"provider": p.Name, "project_id": projectID}, "")
+		return nil, err
+	}
+	s.emitAIAudit(ctx, "ai_provider", p.ID, "project_spend_alert_created", "AI project spend alert created", map[string]any{"provider": p.Name, "project_id": projectID, "alert_id": res.ID, "threshold_cents": req.ThresholdCents}, "")
+	return res, nil
+}
+
+func (s *Service) UpdateAIProjectSpendAlert(ctx context.Context, provider, projectID, alertID string, req aiproviders.ProjectSpendAlertInput) (*aiproviders.ProjectSpendAlert, error) {
+	p, controls, ac, err := s.projectControlsFor(ctx, provider)
+	if err != nil {
+		return nil, err
+	}
+	res, err := controls.UpdateProjectSpendAlert(ctx, ac, projectID, alertID, req)
+	if err != nil {
+		s.emitAIAudit(ctx, "ai_provider", p.ID, "project_spend_alert_update_failed", err.Error(), map[string]any{"provider": p.Name, "project_id": projectID, "alert_id": alertID}, "")
+		return nil, err
+	}
+	s.emitAIAudit(ctx, "ai_provider", p.ID, "project_spend_alert_updated", "AI project spend alert updated", map[string]any{"provider": p.Name, "project_id": projectID, "alert_id": res.ID, "threshold_cents": req.ThresholdCents}, "")
+	return res, nil
+}
+
+func (s *Service) DeleteAIProjectSpendAlert(ctx context.Context, provider, projectID, alertID string) error {
+	p, controls, ac, err := s.projectControlsFor(ctx, provider)
+	if err != nil {
+		return err
+	}
+	if err := controls.DeleteProjectSpendAlert(ctx, ac, projectID, alertID); err != nil {
+		s.emitAIAudit(ctx, "ai_provider", p.ID, "project_spend_alert_delete_failed", err.Error(), map[string]any{"provider": p.Name, "project_id": projectID, "alert_id": alertID}, "")
+		return err
+	}
+	s.emitAIAudit(ctx, "ai_provider", p.ID, "project_spend_alert_deleted", "AI project spend alert deleted", map[string]any{"provider": p.Name, "project_id": projectID, "alert_id": alertID}, "")
 	return nil
 }

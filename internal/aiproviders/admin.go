@@ -169,3 +169,90 @@ type WorkspaceAccess struct {
 	WorkspaceRole WorkspaceRole
 	Inherited     bool // true = from org admin/billing; invisible to the members API
 }
+
+// ProjectControlsProvisioner is an OPTIONAL extension for providers whose
+// workspace/project objects expose governance controls beyond membership.
+// OpenAI implements this for project-level API keys, rate limits, model/tool
+// permissions, data retention, and spend alerts.
+type ProjectControlsProvisioner interface {
+	ListProjectAPIKeys(ctx context.Context, ac AdminContext, projectID string) ([]ProjectAPIKey, error)
+	DeleteProjectAPIKey(ctx context.Context, ac AdminContext, projectID, keyID string) error
+	ListProjectRateLimits(ctx context.Context, ac AdminContext, projectID string) ([]ProjectRateLimit, error)
+	UpdateProjectRateLimit(ctx context.Context, ac AdminContext, projectID, rateLimitID string, req ProjectRateLimitUpdate) (*ProjectRateLimit, error)
+	GetProjectModelPermissions(ctx context.Context, ac AdminContext, projectID string) (*ProjectModelPermissions, error)
+	SetProjectModelPermissions(ctx context.Context, ac AdminContext, projectID string, req ProjectModelPermissions) (*ProjectModelPermissions, error)
+	DeleteProjectModelPermissions(ctx context.Context, ac AdminContext, projectID string) error
+	GetProjectHostedToolPermissions(ctx context.Context, ac AdminContext, projectID string) (*ProjectHostedToolPermissions, error)
+	SetProjectHostedToolPermissions(ctx context.Context, ac AdminContext, projectID string, req ProjectHostedToolPermissions) (*ProjectHostedToolPermissions, error)
+	GetProjectDataRetention(ctx context.Context, ac AdminContext, projectID string) (*ProjectDataRetention, error)
+	SetProjectDataRetention(ctx context.Context, ac AdminContext, projectID string, req ProjectDataRetention) (*ProjectDataRetention, error)
+	ListProjectSpendAlerts(ctx context.Context, ac AdminContext, projectID string) ([]ProjectSpendAlert, error)
+	CreateProjectSpendAlert(ctx context.Context, ac AdminContext, projectID string, req ProjectSpendAlertInput) (*ProjectSpendAlert, error)
+	UpdateProjectSpendAlert(ctx context.Context, ac AdminContext, projectID, alertID string, req ProjectSpendAlertInput) (*ProjectSpendAlert, error)
+	DeleteProjectSpendAlert(ctx context.Context, ac AdminContext, projectID, alertID string) error
+}
+
+type ProjectAPIKey struct {
+	ID            string
+	Name          string
+	RedactedValue string
+	CreatedAt     string
+	LastUsedAt    string
+	OwnerType     string
+	OwnerName     string
+	OwnerEmail    string
+}
+
+type ProjectRateLimit struct {
+	ID                          string
+	Model                       string
+	MaxRequestsPer1Minute       float64
+	MaxTokensPer1Minute         float64
+	MaxRequestsPer1Day          float64
+	MaxImagesPer1Minute         float64
+	MaxAudioMegabytesPer1Minute float64
+	Batch1DayMaxInputTokens     float64
+	Raw                         map[string]any
+}
+
+type ProjectRateLimitUpdate struct {
+	MaxRequestsPer1Minute       *float64
+	MaxTokensPer1Minute         *float64
+	MaxRequestsPer1Day          *float64
+	MaxImagesPer1Minute         *float64
+	MaxAudioMegabytesPer1Minute *float64
+	Batch1DayMaxInputTokens     *float64
+}
+
+type ProjectModelPermissions struct {
+	Mode     string
+	ModelIDs []string
+}
+
+type ProjectHostedToolPermissions struct {
+	CodeInterpreter bool
+	FileSearch      bool
+	ImageGeneration bool
+	MCP             bool
+	WebSearch       bool
+}
+
+type ProjectDataRetention struct {
+	Type string
+}
+
+type ProjectSpendAlert struct {
+	ID             string
+	Currency       string
+	Interval       string
+	ThresholdCents float64
+	Recipients     []string
+	SubjectPrefix  string
+	CreatedAt      string
+}
+
+type ProjectSpendAlertInput struct {
+	ThresholdCents float64
+	Recipients     []string
+	SubjectPrefix  string
+}

@@ -91,6 +91,55 @@ export interface AIWorkspaceAccess {
   inherited: boolean;
 }
 
+export interface AIProjectAPIKey {
+  id: string;
+  name: string;
+  redactedValue: string;
+  createdAt?: string;
+  lastUsedAt?: string;
+  ownerType?: string;
+  ownerName?: string;
+  ownerEmail?: string;
+}
+
+export interface AIProjectRateLimit {
+  id: string;
+  model: string;
+  maxRequestsPer1Minute?: number;
+  maxTokensPer1Minute?: number;
+  maxRequestsPer1Day?: number;
+  maxImagesPer1Minute?: number;
+  maxAudioMegabytesPer1Minute?: number;
+  batch1DayMaxInputTokens?: number;
+}
+
+export interface AIProjectModelPermissions {
+  mode: string;
+  modelIds: string[];
+}
+
+export interface AIProjectHostedToolPermissions {
+  codeInterpreter: boolean;
+  fileSearch: boolean;
+  imageGeneration: boolean;
+  mcp: boolean;
+  webSearch: boolean;
+}
+
+export interface AIProjectDataRetention {
+  type: string;
+}
+
+export interface AIProjectSpendAlert {
+  id: string;
+  currency?: string;
+  interval?: string;
+  thresholdCents: number;
+  recipients: string[];
+  subjectPrefix?: string;
+  createdAt?: string;
+}
+
 // Agent & MCP governance (migration 00022): a registry of approved MCP servers
 // teams may use, with per-owner grants and an authorize enforcement check.
 export interface MCPServer {

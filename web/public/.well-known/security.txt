@@ -1,4 +1,4 @@
-Contact: mailto:security@opord.dev
+Contact: mailto:admin@opord.dev
 Expires: 2027-06-13T00:00:00.000Z
 Preferred-Languages: en, uk
 Policy: https://github.com/cz8jmh4n7f-bit/opord-ai-demo/blob/main/SECURITY.md

@@ -5,7 +5,7 @@ are taken seriously - thank you for reporting them responsibly.
 
 ## Reporting a vulnerability
 
-- Email **security@opord.dev** with a description, reproduction steps, and impact.
+- Email **admin@opord.dev** with a description, reproduction steps, and impact.
 - Please do **not** open a public issue for security reports.
 - You should receive an acknowledgement within 72 hours. Coordinated disclosure
   is appreciated; we will credit reporters unless you prefer otherwise.

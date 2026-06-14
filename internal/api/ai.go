@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/aiproviders"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/auth"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/orchestrator"
@@ -141,6 +142,56 @@ type aiModelDTO struct {
 	UpdatedAt    time.Time      `json:"updatedAt"`
 }
 
+type aiProjectAPIKeyDTO struct {
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	RedactedValue string `json:"redactedValue"`
+	CreatedAt     string `json:"createdAt,omitempty"`
+	LastUsedAt    string `json:"lastUsedAt,omitempty"`
+	OwnerType     string `json:"ownerType,omitempty"`
+	OwnerName     string `json:"ownerName,omitempty"`
+	OwnerEmail    string `json:"ownerEmail,omitempty"`
+}
+
+type aiProjectRateLimitDTO struct {
+	ID                          string         `json:"id"`
+	Model                       string         `json:"model"`
+	MaxRequestsPer1Minute       float64        `json:"maxRequestsPer1Minute,omitempty"`
+	MaxTokensPer1Minute         float64        `json:"maxTokensPer1Minute,omitempty"`
+	MaxRequestsPer1Day          float64        `json:"maxRequestsPer1Day,omitempty"`
+	MaxImagesPer1Minute         float64        `json:"maxImagesPer1Minute,omitempty"`
+	MaxAudioMegabytesPer1Minute float64        `json:"maxAudioMegabytesPer1Minute,omitempty"`
+	Batch1DayMaxInputTokens     float64        `json:"batch1DayMaxInputTokens,omitempty"`
+	Raw                         map[string]any `json:"raw,omitempty"`
+}
+
+type aiProjectModelPermissionsDTO struct {
+	Mode     string   `json:"mode"`
+	ModelIDs []string `json:"modelIds"`
+}
+
+type aiProjectHostedToolPermissionsDTO struct {
+	CodeInterpreter bool `json:"codeInterpreter"`
+	FileSearch      bool `json:"fileSearch"`
+	ImageGeneration bool `json:"imageGeneration"`
+	MCP             bool `json:"mcp"`
+	WebSearch       bool `json:"webSearch"`
+}
+
+type aiProjectDataRetentionDTO struct {
+	Type string `json:"type"`
+}
+
+type aiProjectSpendAlertDTO struct {
+	ID             string   `json:"id"`
+	Currency       string   `json:"currency,omitempty"`
+	Interval       string   `json:"interval,omitempty"`
+	ThresholdCents float64  `json:"thresholdCents"`
+	Recipients     []string `json:"recipients"`
+	SubjectPrefix  string   `json:"subjectPrefix,omitempty"`
+	CreatedAt      string   `json:"createdAt,omitempty"`
+}
+
 func aiProviderToDTO(p db.AiProvider) aiProviderDTO {
 	var cfg map[string]any
 	_ = json.Unmarshal(p.Config, &cfg)
@@ -191,6 +242,55 @@ func aiModelToDTO(m db.ListAIModelCatalogRow) aiModelDTO {
 		ID: m.ID.String(), ProviderID: m.ProviderID.String(), ProviderName: m.ProviderName, ProviderType: m.ProviderType,
 		Model: m.Model, DisplayName: m.DisplayName, Modality: m.Modality, Status: m.Status, Metadata: meta,
 		CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt,
+	}
+}
+
+func aiProjectAPIKeyToDTO(k aiproviders.ProjectAPIKey) aiProjectAPIKeyDTO {
+	return aiProjectAPIKeyDTO{
+		ID: k.ID, Name: k.Name, RedactedValue: k.RedactedValue, CreatedAt: k.CreatedAt, LastUsedAt: k.LastUsedAt,
+		OwnerType: k.OwnerType, OwnerName: k.OwnerName, OwnerEmail: k.OwnerEmail,
+	}
+}
+
+func aiProjectRateLimitToDTO(l aiproviders.ProjectRateLimit) aiProjectRateLimitDTO {
+	return aiProjectRateLimitDTO{
+		ID: l.ID, Model: l.Model,
+		MaxRequestsPer1Minute:       l.MaxRequestsPer1Minute,
+		MaxTokensPer1Minute:         l.MaxTokensPer1Minute,
+		MaxRequestsPer1Day:          l.MaxRequestsPer1Day,
+		MaxImagesPer1Minute:         l.MaxImagesPer1Minute,
+		MaxAudioMegabytesPer1Minute: l.MaxAudioMegabytesPer1Minute,
+		Batch1DayMaxInputTokens:     l.Batch1DayMaxInputTokens,
+	}
+}
+
+func aiProjectModelPermissionsToDTO(p *aiproviders.ProjectModelPermissions) aiProjectModelPermissionsDTO {
+	if p == nil {
+		return aiProjectModelPermissionsDTO{}
+	}
+	return aiProjectModelPermissionsDTO{Mode: p.Mode, ModelIDs: p.ModelIDs}
+}
+
+func aiProjectHostedToolPermissionsToDTO(p *aiproviders.ProjectHostedToolPermissions) aiProjectHostedToolPermissionsDTO {
+	if p == nil {
+		return aiProjectHostedToolPermissionsDTO{}
+	}
+	return aiProjectHostedToolPermissionsDTO{
+		CodeInterpreter: p.CodeInterpreter, FileSearch: p.FileSearch, ImageGeneration: p.ImageGeneration, MCP: p.MCP, WebSearch: p.WebSearch,
+	}
+}
+
+func aiProjectDataRetentionToDTO(p *aiproviders.ProjectDataRetention) aiProjectDataRetentionDTO {
+	if p == nil {
+		return aiProjectDataRetentionDTO{}
+	}
+	return aiProjectDataRetentionDTO{Type: p.Type}
+}
+
+func aiProjectSpendAlertToDTO(a aiproviders.ProjectSpendAlert) aiProjectSpendAlertDTO {
+	return aiProjectSpendAlertDTO{
+		ID: a.ID, Currency: a.Currency, Interval: a.Interval, ThresholdCents: a.ThresholdCents,
+		Recipients: a.Recipients, SubjectPrefix: a.SubjectPrefix, CreatedAt: a.CreatedAt,
 	}
 }
 

@@ -29,6 +29,12 @@ export function AIRequestButton({ service }: { service: AIService }) {
   const isLiteLLMKey = service.slug === "litellm-virtual-key";
   const [models, setModels] = useState("");
   const [maxBudget, setMaxBudget] = useState("");
+  const schemaFields = Array.isArray(service.requestSchema?.fields)
+    ? (service.requestSchema.fields as unknown[]).filter((f): f is string => typeof f === "string")
+    : [];
+  const coreFields = new Set(["owner", "workspace", "justification", "expires_at"]);
+  const extraFields = schemaFields.filter((f) => !coreFields.has(f) && !(isLiteLLMKey && ["models", "max_budget"].includes(f)));
+  const [extra, setExtra] = useState<Record<string, string>>({});
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -39,6 +45,11 @@ export function AIRequestButton({ service }: { service: AIService }) {
         const list = models.split(",").map((m) => m.trim()).filter(Boolean);
         if (list.length) metadata.models = list;
         if (maxBudget.trim()) metadata.max_budget = Number(maxBudget);
+      }
+      for (const field of extraFields) {
+        const raw = (extra[field] ?? "").trim();
+        if (!raw) continue;
+        metadata[field] = parseMetadataValue(field, raw);
       }
       const res = await fetch(`${API}/api/v1/ai/requests`, {
         method: "POST",
@@ -123,6 +134,22 @@ export function AIRequestButton({ service }: { service: AIService }) {
                   </label>
                 </div>
               )}
+              {extraFields.length > 0 && (
+                <div className="grid gap-2 rounded-lg border border-border bg-muted/30 p-3">
+                  <label className="text-xs font-medium text-muted-foreground">Service fields</label>
+                  {extraFields.map((field) => (
+                    <label key={field} className="flex flex-col gap-1">
+                      <span className="text-xs text-muted-foreground">{field.replace(/_/g, " ")}</span>
+                      <input
+                        className={inputCls}
+                        value={extra[field] ?? ""}
+                        onChange={(e) => setExtra({ ...extra, [field]: e.target.value })}
+                        placeholder={placeholderFor(field)}
+                      />
+                    </label>
+                  ))}
+                </div>
+              )}
               <div className="flex items-center justify-end gap-2">
                 <button type="button" onClick={() => setOpen(false)} className={button({ variant: "outline", size: "sm" })} disabled={busy}>
                   Cancel
@@ -138,4 +165,30 @@ export function AIRequestButton({ service }: { service: AIService }) {
         )}
     </>
   );
+}
+
+function parseMetadataValue(field: string, raw: string): unknown {
+  if (["models", "model_ids", "tools", "recipients", "file_types", "base_models"].includes(field)) {
+    return raw.split(",").map((v) => v.trim()).filter(Boolean);
+  }
+  if (["web_search", "file_search", "code_interpreter", "image_generation", "mcp", "create_project"].includes(field)) {
+    return ["1", "true", "yes", "on", "enabled"].includes(raw.toLowerCase());
+  }
+  if (
+    field.startsWith("estimated_") ||
+    field.startsWith("max_") ||
+    ["storage_gb", "threshold_usd", "threshold_cents"].includes(field)
+  ) {
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : raw;
+  }
+  return raw;
+}
+
+function placeholderFor(field: string): string {
+  if (["models", "model_ids", "tools", "recipients", "file_types", "base_models"].includes(field)) return "comma-separated";
+  if (["web_search", "file_search", "code_interpreter", "image_generation", "mcp", "create_project"].includes(field)) return "true / false";
+  if (field === "project_id") return "proj_...";
+  if (field === "project_name") return "team-platform";
+  return "";
 }
