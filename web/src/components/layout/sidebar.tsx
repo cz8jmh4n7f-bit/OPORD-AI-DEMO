@@ -15,7 +15,7 @@ export function Sidebar() {
   const sections = sectionsFor(useAIMode());
 
   return (
-    <aside className="hidden w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground md:flex">
+    <aside className="hidden w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground md:sticky md:top-0 md:flex md:h-screen">
       <div className="flex h-16 items-center border-b border-white/10 px-5">
         <Logo />
       </div>

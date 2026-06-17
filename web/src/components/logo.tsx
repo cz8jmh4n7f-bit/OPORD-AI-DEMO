@@ -20,12 +20,7 @@ export function Logo({ className }: { className?: string }) {
   return (
     <div className={cn("flex items-center gap-2.5", className)}>
       <LogoMark className="h-6 text-white" />
-      <div className="flex flex-col leading-none">
-        <span className="text-lg font-bold tracking-tight text-white">OPORD</span>
-        <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-sidebar-muted">
-          Declarative Infra Ops
-        </span>
-      </div>
+      <span className="text-lg font-bold tracking-tight text-white">OPORD</span>
     </div>
   );
 }

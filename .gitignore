@@ -56,7 +56,9 @@ azure-create-test.yaml
 .dev/
 
 # --- Docs & AI-context files (untracked for now; stay on disk + in git history) ---
-docs/
+docs/*
+!docs/index.html
+!docs/.nojekyll
 CLAUDE.md
 AGENTS.md
 
