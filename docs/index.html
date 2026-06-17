@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>OPORD — Access control plane for AI vendors</title>
-<meta name="description" content="Control who — and what — can use OpenAI, Anthropic, and every AI vendor. Temporary, scoped access. One-click revoke. Full audit. For engineers, contractors, and AI agents." />
+<title>OPORD - Access control plane for AI vendors</title>
+<meta name="description" content="Control who - and what - can use OpenAI, Anthropic, and every AI vendor. Temporary, scoped access. One-click revoke. Full audit. For engineers, contractors, and AI agents." />
 <style>
   :root{
     --bg:#0a0f1e; --bg2:#0d1426; --panel:#111a30; --panel2:#0f1830;
@@ -157,8 +157,8 @@
 
 <header class="hero"><div class="wrap">
   <span class="eyebrow">Access control plane for AI vendors</span>
-  <h1>Control <span class="g">who — and what —</span><br>can use your AI vendors.</h1>
-  <p class="lead">Temporary, scoped access to OpenAI, Anthropic, and every AI vendor — for your engineers,
+  <h1>Control <span class="g">who - and what -</span><br>can use your AI vendors.</h1>
+  <p class="lead">Temporary, scoped access to OpenAI, Anthropic, and every AI vendor - for your engineers,
     contractors, <b style="color:var(--text)">and AI agents</b>. Vendor-side enforcement, one-click revoke, and a full audit trail.
     Without ever handing out raw provider keys.</p>
   <div class="cta">
@@ -177,25 +177,25 @@
 <section id="problem"><div class="wrap">
   <h2 class="sec-h">Raw keys for everyone is not a plan.</h2>
   <p class="sec-sub">Companies already use OpenAI and Anthropic. But giving every engineer, contractor, service,
-    and agent a raw provider key — and hoping someone remembers to revoke it — is a security and compliance liability.</p>
+    and agent a raw provider key - and hoping someone remembers to revoke it - is a security and compliance liability.</p>
   <div class="grid g3" style="margin-top:30px">
     <div class="card"><div class="ic">🗝️</div><h3>Raw keys leak and never die</h3>
       <p>A key handed to a contractor outlives the engagement. No expiry, no scope, no idea who still holds it.</p></div>
     <div class="card"><div class="ic">⏳</div><h3>Onboarding is manual and endless</h3>
-      <p>Create the workspace, assign the role, repeat — for 1,000 people and every role change. Your ITSM opens a ticket; a human still clicks through the vendor console by hand.</p></div>
+      <p>Create the workspace, assign the role, repeat - for 1,000 people and every role change. Your ITSM opens a ticket; a human still clicks through the vendor console by hand.</p></div>
     <div class="card"><div class="ic">🤖</div><h3>Agents have no IAM at all</h3>
-      <p>CI jobs, eval pipelines, and coding agents need vendor access too — but identity tooling is built for humans, not bots.</p></div>
+      <p>CI jobs, eval pipelines, and coding agents need vendor access too - but identity tooling is built for humans, not bots.</p></div>
   </div>
 </div></section>
 
 <!-- HOW -->
 <section id="how"><div class="wrap">
-  <h2 class="sec-h">The full access lifecycle — for one human or one agent.</h2>
+  <h2 class="sec-h">The full access lifecycle - for one human or one agent.</h2>
   <p class="sec-sub">Not a proxy. Not another dashboard. OPORD creates, scopes, expires, and removes <b style="color:var(--text)">real access</b> at the vendor.</p>
   <div class="flow">
-    <div class="step"><div class="n">01 · REQUEST</div><h4>Request access</h4><p>A person or agent asks for a vendor, scope, and duration — via OPORD or your ITSM ticket.</p></div>
+    <div class="step"><div class="n">01 · REQUEST</div><h4>Request access</h4><p>A person or agent asks for a vendor, scope, and duration - via OPORD or your ITSM ticket.</p></div>
     <div class="step"><div class="n">02 · APPROVE</div><h4>Approve / reject</h4><p>Owner approves with one click. Policies and budgets are checked before anything is granted.</p></div>
-    <div class="step"><div class="n">03 · PROVISION</div><h4>Provision scoped</h4><p>OPORD provisions real access — project, model + tool allow-list, spend cap — keys stay in your vault.</p></div>
+    <div class="step"><div class="n">03 · PROVISION</div><h4>Provision scoped</h4><p>OPORD provisions real access - project, model + tool allow-list, spend cap - keys stay in your vault.</p></div>
     <div class="step"><div class="n">04 · EXPIRE</div><h4>TTL + revoke</h4><p>Access auto-expires on its TTL, or you revoke instantly. Vendor-side, not just in a list.</p></div>
     <div class="step"><div class="n">05 · AUDIT</div><h4>Full audit</h4><p>Every request, grant, block, and revoke is recorded with actor and time. Export for compliance.</p></div>
   </div>
@@ -204,7 +204,7 @@
 <!-- PREVIEW -->
 <section id="preview"><div class="wrap">
   <h2 class="sec-h">See it working.</h2>
-  <p class="sec-sub">The same screens your platform and security teams live in — humans and agents side by side.</p>
+  <p class="sec-sub">The same screens your platform and security teams live in - humans and agents side by side.</p>
 
   <div class="preview">
     <div class="bar"><span class="dot" style="background:#ff5f57"></span><span class="dot" style="background:#febc2e"></span><span class="dot" style="background:#28c840"></span>
@@ -222,7 +222,7 @@
         <div class="lbl">Spend guardrails · this month</div>
         <div class="bud"><div class="top"><span>OpenAI</span><span class="muted">$1,712 / $2,000 · <b style="color:var(--warn)">86%</b></span></div>
           <div class="track"><div class="fill" style="width:86%;background:linear-gradient(90deg,#ffb020,#ff7a1a)"></div></div>
-          <div class="note" style="margin-top:6px;color:var(--warn)">⚠ warning threshold — gateway will block at the hard limit</div></div>
+          <div class="note" style="margin-top:6px;color:var(--warn)">⚠ warning threshold - gateway will block at the hard limit</div></div>
         <div class="bud"><div class="top"><span>Anthropic</span><span class="muted">$419 / $1,000 · 42%</span></div>
           <div class="track"><div class="fill" style="width:42%;background:linear-gradient(90deg,#2bb673,#37d399)"></div></div></div>
         <div class="bud"><div class="top"><span>Global</span><span class="muted">$2,137 / $5,000 · 43%</span></div>
@@ -241,7 +241,7 @@
 <!-- DIFFERENT -->
 <section id="different"><div class="wrap">
   <h2 class="sec-h">Not a proxy. Not a replacement for your ITSM.</h2>
-  <p class="sec-sub">Most adjacent tools watch and filter traffic. OPORD manages the <b style="color:var(--text)">actual access</b> — and slots in under the stack you already run.</p>
+  <p class="sec-sub">Most adjacent tools watch and filter traffic. OPORD manages the <b style="color:var(--text)">actual access</b> - and slots in under the stack you already run.</p>
   <div class="compare">
     <div class="col no"><h3 class="muted">What this is <span style="color:var(--danger)">not</span></h3><ul style="margin:0;padding:0">
       <li>A model gateway / LLM proxy you route all traffic through</li>
@@ -253,7 +253,7 @@
       <li>The AI-vendor execution layer: it does the OpenAI/Anthropic last mile your ITSM can’t</li>
       <li>Imports your user list, triggered by your existing approval</li>
       <li>Real scoped provisioning: project · model · tool · spend cap · TTL · revoke</li>
-      <li>IAM for non-human agents — where identity tooling is weakest</li>
+      <li>IAM for non-human agents - where identity tooling is weakest</li>
     </ul></div>
   </div>
 </div></section>
@@ -261,7 +261,7 @@
 <!-- VENDORS -->
 <section id="vendors"><div class="wrap">
   <h2 class="sec-h">One control plane. Every AI vendor.</h2>
-  <p class="sec-sub">Govern the providers your teams already pay for — with more landing every month. No raw keys, wherever the access lives.</p>
+  <p class="sec-sub">Govern the providers your teams already pay for - with more landing every month. No raw keys, wherever the access lives.</p>
   <div class="grid g3" style="margin-top:30px">
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="ic">⚡</div><span class="pill ok">Live</span></div>
@@ -271,7 +271,7 @@
       <h3>Anthropic · Claude</h3><p>Workspace seats, Claude Code entitlements, org-admin grants, and a full audit trail.</p></div>
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="ic">✦</div><span class="pill pend">In testing</span></div>
-      <h3>Google Gemini</h3><p>AI Studio <b style="color:var(--muted)">+</b> Vertex AI access governance. In active testing — design partners first.</p></div>
+      <h3>Google Gemini</h3><p>AI Studio <b style="color:var(--muted)">+</b> Vertex AI access governance. In active testing - design partners first.</p></div>
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="ic">🔎</div><span class="pill pend">In testing</span></div>
       <h3>Perplexity</h3><p>Governed Sonar search-augmented access through the OPORD gateway. In active testing.</p></div>
@@ -280,9 +280,9 @@
       <h3>GitHub Copilot</h3><p>Real seat assign / revoke plus billing &amp; usage governance for Business / Enterprise. In active testing.</p></div>
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="ic">＋</div><span class="pill agent">More soon</span></div>
-      <h3>Your stack, governed</h3><p>LiteLLM virtual keys, MockAI for demos — and the vendor you ask for next.</p></div>
+      <h3>Your stack, governed</h3><p>LiteLLM virtual keys, MockAI for demos - and the vendor you ask for next.</p></div>
   </div>
-  <p class="note">“In testing” vendors are built and in active QA — first access goes to design partners. Want one prioritized? <a class="brand" href="#contact">Tell us ↗</a></p>
+  <p class="note">“In testing” vendors are built and in active QA - first access goes to design partners. Want one prioritized? <a class="brand" href="#contact">Tell us ↗</a></p>
 </div></section>
 
 <!-- FOR -->
@@ -291,7 +291,7 @@
   <div class="grid g4" style="margin-top:28px">
     <div class="card"><h3>Platform teams</h3><p>Stop hand-provisioning vendor access for every team and every role change.</p></div>
     <div class="card"><h3>Security engineering</h3><p>No raw keys in the wild. Instant revoke. An audit trail that survives an interview.</p></div>
-    <div class="card"><h3>AI enablement</h3><p>Let teams self-serve scoped access — with budgets and policy as the guardrails.</p></div>
+    <div class="card"><h3>AI enablement</h3><p>Let teams self-serve scoped access - with budgets and policy as the guardrails.</p></div>
     <div class="card"><h3>Anyone running agents</h3><p>Give CI jobs, evals, and coding agents capped, expiring, revocable vendor access.</p></div>
   </div>
 </div></section>
@@ -300,7 +300,7 @@
 <section id="contact" style="border-top:none"><div class="wrap">
   <div class="ctaband">
     <span class="eyebrow">Early access</span>
-    <h2 style="margin-top:14px">Control who can use which AI vendor —<br>with temporary scoped access and instant revoke.</h2>
+    <h2 style="margin-top:14px">Control who can use which AI vendor -<br>with temporary scoped access and instant revoke.</h2>
     <p class="muted" style="max-width:560px;margin:6px auto 4px">We’re onboarding a handful of design-partner teams. If you provision AI-vendor access by hand today, we’d like 15 minutes.</p>
 
     <form id="contactForm" class="lead-form" novalidate>
@@ -349,13 +349,13 @@
     if (form.botcheck && form.botcheck.checked) return;              // honeypot tripped -> silently drop
     var email = (form.email.value || "").trim();
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { say("Enter a valid work email."); form.email.focus(); return; }
-    if (parseInt(document.getElementById("capAns").value, 10) !== a + b) { say("Spam check is off — try the sum again."); return; }
+    if (parseInt(document.getElementById("capAns").value, 10) !== a + b) { say("Spam check is off - try the sum again."); return; }
     var phone = (form.phone.value || "").trim(), message = (form.message.value || "").trim();
     var key = form.access_key.value;
 
     // No form-backend key configured yet -> fall back to the user's mail client so the form still works.
     if (!key || key.indexOf("YOUR_") === 0) {
-      window.location.href = "mailto:admin@opord.dev?subject=" + encodeURIComponent("OPORD — lead from landing") +
+      window.location.href = "mailto:admin@opord.dev?subject=" + encodeURIComponent("OPORD - lead from landing") +
         "&body=" + encodeURIComponent("Email: " + email + "\nPhone: " + phone + "\n\n" + message);
       return;
     }
@@ -363,12 +363,12 @@
     try {
       var res = await fetch("https://api.web3forms.com/submit", {
         method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ access_key: key, subject: "OPORD — landing lead", from_name: "OPORD landing", email: email, phone: phone, message: message })
+        body: JSON.stringify({ access_key: key, subject: "OPORD - landing lead", from_name: "OPORD landing", email: email, phone: phone, message: message })
       });
       var data = await res.json();
-      if (data.success) { form.reset(); document.getElementById("capA").textContent = a; document.getElementById("capB").textContent = b; say("Thanks — we’ll be in touch shortly.", true); }
-      else say(data.message || "Something went wrong — email admin@opord.dev directly.");
-    } catch (err) { say("Network error — email admin@opord.dev directly."); }
+      if (data.success) { form.reset(); document.getElementById("capA").textContent = a; document.getElementById("capB").textContent = b; say("Thanks - we’ll be in touch shortly.", true); }
+      else say(data.message || "Something went wrong - email admin@opord.dev directly.");
+    } catch (err) { say("Network error - email admin@opord.dev directly."); }
   });
 })();
 </script>
