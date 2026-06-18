@@ -28,6 +28,8 @@
   --faint: #9ca3af;
   --border: rgba(0, 0, 0, 0.08);
   --border-strong: rgba(0, 0, 0, 0.14);
+  --border-hover: rgba(0, 0, 0, 0.15);
+  --grid-dot: rgba(0, 0, 0, 0.05);
   --input-border: #c7c7cc;
   --ring: #f97316;
 
@@ -76,6 +78,8 @@
   --faint: #555555;
   --border: rgba(255, 255, 255, 0.07);
   --border-strong: rgba(255, 255, 255, 0.12);
+  --border-hover: rgba(255, 255, 255, 0.15);
+  --grid-dot: rgba(255, 255, 255, 0.06);
   --input-border: #3a3a3a;
   --ring: #f97316;
 
@@ -185,4 +189,36 @@ body {
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Subtle dot grid for the main content area only (never the sidebar). The dot
+   color is theme-aware (faint light dots on dark, faint dark dots on light). */
+.content-grid {
+  background-image: radial-gradient(circle, var(--grid-dot) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Card hover: the hairline border brightens and the surface lifts a touch. */
+.card-hover {
+  transition: border-color 180ms ease, background-color 180ms ease;
+}
+.card-hover:hover {
+  border-color: var(--border-hover);
+  background-color: var(--surface-3);
+}
+
+/* Content fades up on route change (the keyed wrapper remounts per pathname).
+   The reduced-motion rule above collapses this to instant. */
+@keyframes content-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.content-fade {
+  animation: content-fade-in 200ms ease-out;
 }

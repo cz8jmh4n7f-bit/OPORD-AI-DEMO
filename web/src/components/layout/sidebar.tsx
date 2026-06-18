@@ -37,12 +37,17 @@ export function Sidebar() {
                   href={href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "block border-l-2 py-1.5 pl-3 text-[13px] transition-colors",
-                    active
-                      ? "border-primary font-medium text-foreground"
-                      : "border-transparent text-sidebar-foreground hover:text-foreground",
+                    "relative block py-1.5 pl-3 text-[13px] transition-colors",
+                    active ? "font-medium text-foreground" : "text-sidebar-foreground hover:text-foreground",
                   )}
                 >
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "absolute inset-y-0 left-0 w-0.5 origin-center bg-primary transition-transform duration-150",
+                      active ? "scale-y-100" : "scale-y-0",
+                    )}
+                  />
                   {label}
                 </Link>
               );

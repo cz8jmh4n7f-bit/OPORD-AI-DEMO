@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { CountUp } from "@/components/count-up";
 import { cn } from "@/lib/utils";
 
 // A zero value reads dimmer than a real one, so an empty console doesn't shout
@@ -17,16 +18,18 @@ export function StatCard({
   label,
   value,
   hint,
+  countUp = false,
 }: {
   icon?: LucideIcon;
   label: string;
   value: string | number;
   hint?: string;
   accent?: string;
+  countUp?: boolean;
 }) {
   const zero = isZeroValue(value);
   return (
-    <div className="rounded-lg border border-border bg-surface-2 p-4 transition-colors hover:border-border-strong">
+    <div className="card-hover rounded-lg border border-border bg-surface-2 p-4">
       <div className="flex items-start justify-between gap-2">
         <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
           {label}
@@ -39,7 +42,7 @@ export function StatCard({
           zero ? "text-muted-foreground" : "text-foreground",
         )}
       >
-        {value}
+        {countUp ? <CountUp value={value} /> : value}
       </div>
       {hint && <div className="mt-1.5 text-xs text-faint">{hint}</div>}
     </div>

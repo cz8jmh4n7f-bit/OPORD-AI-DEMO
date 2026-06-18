@@ -35,9 +35,9 @@ export default async function AIBudgetsPage() {
       </PageHeader>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <StatCard icon={WalletCards} label="Budgets" value={budgets.length} hint="Configured controls" />
-        <StatCard icon={CircleDollarSign} label="Actual" value={usd(totalActual)} hint="Current period usage" accent="bg-info/10 text-info" />
-        <StatCard icon={Gauge} label="Limit" value={usd(totalLimit)} hint="Current period budget" accent="bg-success/10 text-success" />
+        <StatCard countUp icon={WalletCards} label="Budgets" value={budgets.length} hint="Configured controls" />
+        <StatCard countUp icon={CircleDollarSign} label="Actual" value={usd(totalActual)} hint="Current period usage" accent="bg-info/10 text-info" />
+        <StatCard countUp icon={Gauge} label="Limit" value={usd(totalLimit)} hint="Current period budget" accent="bg-success/10 text-success" />
       </div>
 
       {budgets.length === 0 ? (

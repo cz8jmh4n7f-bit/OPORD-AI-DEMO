@@ -40,8 +40,10 @@ export function LayoutShell({ apiOk, children }: { apiOk: boolean; children: Rea
             </span>
           </div>
         )}
-        <main id="main" tabIndex={-1} className="flex-1 p-4 outline-none md:p-6 lg:p-8">
-          {children}
+        <main id="main" tabIndex={-1} className="content-grid flex-1 p-4 outline-none md:p-6 lg:p-8">
+          <div key={pathname} className="content-fade">
+            {children}
+          </div>
         </main>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CountUp } from "@/components/count-up";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
@@ -59,7 +60,7 @@ export default async function AIOverviewPage() {
   const budgetsAtRisk = budgets.filter((b) => b.status === "warning" || b.status === "hard_limit").length;
   const spend = budgets.reduce((sum, b) => sum + (b.actualUsd || 0), 0);
 
-  const cell = "rounded-lg border border-border bg-surface-2 p-4 transition-colors hover:border-border-strong";
+  const cell = "rounded-lg border border-border bg-surface-2 p-4 card-hover";
   const cellLabel = "text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground";
 
   return (
@@ -81,7 +82,7 @@ export default async function AIOverviewPage() {
               spend === 0 ? "text-muted-foreground" : "text-foreground",
             )}
           >
-            {`$${spend.toFixed(2)}`}
+            <CountUp value={`$${spend.toFixed(2)}`} />
           </div>
           <p className="mt-1.5 text-xs text-faint">Across all budget scopes</p>
           <div className="mt-auto flex flex-wrap gap-x-4 gap-y-1 pt-4 text-xs text-faint">
@@ -102,7 +103,7 @@ export default async function AIOverviewPage() {
               providers.length === 0 ? "text-muted-foreground" : "text-foreground",
             )}
           >
-            {providers.length}
+            <CountUp value={providers.length} />
           </div>
           <p className="mt-1.5 text-xs text-faint">Backends</p>
         </div>
@@ -115,7 +116,7 @@ export default async function AIOverviewPage() {
               pending === 0 ? "text-muted-foreground" : "text-foreground",
             )}
           >
-            {pending}
+            <CountUp value={pending} />
           </div>
           <Link href="/ai/requests" className="mt-auto pt-3 text-xs text-faint transition-colors hover:text-foreground">
             Awaiting approval →
