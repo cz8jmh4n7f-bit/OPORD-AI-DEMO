@@ -8,7 +8,6 @@ import { LogIn, LogOut, Menu, X } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
 import { isActive, sectionsFor } from "./nav";
-import { useAIMode } from "@/lib/ai-mode";
 import { useIdentity } from "@/lib/use-identity";
 
 // MobileNav is the <768px navigation: a hamburger that opens a slide-over drawer
@@ -17,7 +16,7 @@ import { useIdentity } from "@/lib/use-identity";
 export function MobileNav() {
   const pathname = usePathname();
   const { me, hasKey, logout } = useIdentity();
-  const sections = sectionsFor(useAIMode());
+  const sections = sectionsFor();
   const [open, setOpen] = useState(false);
 
   // While open: close on Escape and lock body scroll. (Nav links close the

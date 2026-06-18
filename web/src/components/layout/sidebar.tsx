@@ -6,13 +6,12 @@ import { LogIn, LogOut } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
 import { isActive, sectionsFor } from "./nav";
-import { useAIMode } from "@/lib/ai-mode";
 import { useIdentity } from "@/lib/use-identity";
 
 export function Sidebar() {
   const pathname = usePathname();
   const { me, hasKey, logout } = useIdentity();
-  const sections = sectionsFor(useAIMode());
+  const sections = sectionsFor();
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground md:sticky md:top-0 md:flex md:h-screen">
