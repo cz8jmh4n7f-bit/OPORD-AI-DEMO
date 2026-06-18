@@ -2,30 +2,34 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogIn, LogOut } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
 import { isActive, sectionsFor } from "./nav";
 import { useIdentity } from "@/lib/use-identity";
 
+// Text-only navigation against a surface that differs from the page background
+// (no border-right). The active item is marked by a 2px left accent bar and a
+// brighter label, not a filled background — the command-center treatment.
 export function Sidebar() {
   const pathname = usePathname();
   const { me, hasKey, logout } = useIdentity();
   const sections = sectionsFor();
 
   return (
-    <aside className="hidden w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground md:sticky md:top-0 md:flex md:h-screen">
-      <div className="flex h-16 items-center border-b border-white/10 px-5">
-        <Logo />
+    <aside className="hidden w-[200px] shrink-0 flex-col bg-sidebar md:sticky md:top-0 md:flex md:h-screen">
+      <div className="flex h-11 items-center px-5">
+        <Link href="/ai/overview" aria-label="OPORD home">
+          <Logo />
+        </Link>
       </div>
 
-      <nav className="flex-1 space-y-4 overflow-y-auto p-3">
+      <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
         {sections.map((section) => (
-          <div key={section.title} className="space-y-1">
-            <div className="px-3 pb-0.5 text-[11px] font-semibold uppercase tracking-wider text-sidebar-muted">
+          <div key={section.title} className="space-y-0.5">
+            <div className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-faint">
               {section.title}
             </div>
-            {section.items.map(({ href, label, icon: Icon }) => {
+            {section.items.map(({ href, label }) => {
               const active = isActive(pathname, href);
               return (
                 <Link
@@ -33,13 +37,12 @@ export function Sidebar() {
                   href={href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                    "block border-l-2 py-1.5 pl-3 text-[13px] transition-colors",
                     active
-                      ? "bg-white/10 text-white"
-                      : "text-sidebar-foreground hover:bg-white/5 hover:text-white",
+                      ? "border-primary font-medium text-foreground"
+                      : "border-transparent text-sidebar-foreground hover:text-foreground",
                   )}
                 >
-                  <Icon aria-hidden className={cn("size-5 shrink-0", active ? "text-primary" : "text-sidebar-muted")} />
                   {label}
                 </Link>
               );
@@ -48,32 +51,24 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="border-t border-white/10 p-3">
+      <div className="px-5 py-4">
         {me ? (
-          <div className="space-y-1">
-            <div className="px-3 py-1">
-              <div className="truncate text-sm font-medium text-white">{me.email}</div>
-              <div className="text-xs text-sidebar-muted">
-                {me.role} · {me.tenant}
-              </div>
-            </div>
+          <div className="flex items-center justify-between gap-2 text-[11px] text-faint">
+            <span className="truncate">
+              {me.role} · {me.tenant}
+            </span>
             {hasKey && (
               <button
                 type="button"
                 onClick={logout}
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-white/5 hover:text-white"
+                className="shrink-0 text-faint transition-colors hover:text-foreground"
               >
-                <LogOut className="size-5 shrink-0 text-sidebar-muted" />
                 Sign out
               </button>
             )}
           </div>
         ) : (
-          <Link
-            href="/login"
-            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-white/5 hover:text-white"
-          >
-            <LogIn className="size-5 shrink-0 text-sidebar-muted" />
+          <Link href="/login" className="text-[11px] text-faint transition-colors hover:text-foreground">
             Sign in
           </Link>
         )}

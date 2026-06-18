@@ -17,20 +17,21 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  // Per-route pages export `metadata.title` (e.g. "Clusters"); this template
-  // composes them into "Clusters · OPORD" so browser tabs/history/bookmarks are
+  // Per-route pages export `metadata.title` (e.g. "Budgets"); this template
+  // composes them into "Budgets · OPORD" so browser tabs/history/bookmarks are
   // distinguishable. The default is used on routes that set no title.
   title: {
-    default: "OPORD - Infrastructure Orchestration",
+    default: "OPORD - AI Service Governance",
     template: "%s · OPORD",
   },
   description:
-    "Declarative infrastructure operations: provision Kubernetes clusters across vSphere, Proxmox, and more.",
+    "Governed access to AI services: request, approve, meter, and audit, on the platform you already run.",
 };
 
-// Set the theme class before paint to avoid a flash of the wrong theme. (The AI
-// workspace is route-scoped - see lib/ai-mode.ts - so no persisted mode here.)
-const themeScript = `(function(){try{var t=localStorage.getItem('theme');var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;if(d){document.documentElement.classList.add('dark');}}catch(e){}})();`;
+// Set the theme class before paint to avoid a flash. Dark is the DEFAULT
+// (security command center); only an explicit "light" choice opts out. The
+// catch also defaults to dark so a storage failure never flashes light.
+const themeScript = `(function(){try{if(localStorage.getItem('theme')!=='light'){document.documentElement.classList.add('dark');}}catch(e){document.documentElement.classList.add('dark');}})();`;
 
 export default async function RootLayout({
   children,

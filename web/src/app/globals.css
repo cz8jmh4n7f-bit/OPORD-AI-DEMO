@@ -1,75 +1,107 @@
 @import "tailwindcss";
 
-/* Class-based dark mode (toggled on <html class="dark">) */
+/* Class-based dark mode (toggled on <html class="dark">). Dark is the DEFAULT
+   (see the before-paint script in layout.tsx); light stays available via the
+   topbar toggle. */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ──────────────────────────────────────────────────────────────────────────
+   Design tokens — a security command center, not a SaaS starter kit.
+   Monochrome base + a single precise orange accent. The token NAMES match what
+   the components already consume (background/card/muted/foreground/border/
+   primary/sidebar/…), so retuning the VALUES re-skins the whole console; a few
+   new tokens (surface-2/3, border-strong, faint, accent-subtle) are added for
+   the redesigned surfaces.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* Light theme (secondary) — a clean monochrome inverse of the dark command
+   center, same accent. */
 :root {
-  /* Surfaces */
-  --background: #f6f8fb;
-  --foreground: #0f1b33;
+  --background: #fafafa;
+  --foreground: #18181b;
   --card: #ffffff;
-  --card-foreground: #0f1b33;
-  --muted: #eef2f7;
-  --muted-foreground: #5b6b85;
-  --border: #e2e8f0;
-  /* Stronger border for form controls - the decorative --border (#e2e8f0, ~1.2:1
-     on white) is below the 3:1 non-text-contrast bar (WCAG 1.4.11) for an input
-     boundary. Navy-tinted to stay on-brand. */
-  --input-border: #8595b1;
-  --ring: #f26a21;
+  --card-foreground: #18181b;
+  --surface-2: #ffffff;
+  --surface-3: #f1f1f3;
+  --muted: #f1f1f3;
+  --muted-foreground: #6b7280;
+  --faint: #9ca3af;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.14);
+  --input-border: #c7c7cc;
+  --ring: #f97316;
 
-  /* Brand (from logo) */
-  --navy: #16294b;
-  --navy-foreground: #ffffff;
-  --primary: #f26a21;
+  /* Single accent — orange, kept precise. */
+  --primary: #f97316;
   --primary-foreground: #ffffff;
+  --accent: #f97316;
+  --accent-hover: #ea6c0a;
+  --accent-subtle: rgba(249, 115, 22, 0.08);
 
-  /* Sidebar */
-  --sidebar: #16294b;
-  --sidebar-foreground: #c6d1e4;
-  --sidebar-muted: #8aa0c4;
-  --sidebar-accent: #21386180;
-  --sidebar-active: #f26a21;
+  /* Legacy brand alias (kept so any stray reference resolves). */
+  --navy: #18181b;
+  --navy-foreground: #ffffff;
 
-  /* Status */
+  /* Sidebar — distinct surface from the page, dark text. */
+  --sidebar: #f4f4f5;
+  --sidebar-foreground: #3f3f46;
+  --sidebar-muted: #71717a;
+  --sidebar-accent: rgba(0, 0, 0, 0.04);
+  --sidebar-active: #f97316;
+
+  /* Semantic — used sparingly. */
   --success: #16a34a;
-  --warning: #d97706;
+  --warning: #ca8a04;
   --danger: #dc2626;
   --info: #2563eb;
 
-  /* Accessible badge/pill TEXT - darker than the status fill so it reaches
-     WCAG 4.5:1 on the /10 tinted background (the raw status colors fail). */
+  /* Accessible badge/pill TEXT (≥4.5:1 on the /10 tint). */
   --badge-success: #15803d;
-  --badge-warning: #b45309;
+  --badge-warning: #a16207;
   --badge-danger: #b91c1c;
   --badge-info: #1d4ed8;
   --badge-primary: #c2410c;
 }
 
+/* Dark theme (DEFAULT) — near-black, not pure black. */
 .dark {
-  --background: #0a1424;
-  --foreground: #e6edf7;
-  --card: #0f1d33;
-  --card-foreground: #e6edf7;
-  --muted: #15243f;
-  --muted-foreground: #93a4c0;
-  --border: #1d2f4c;
-  --input-border: #45597e;
-  --ring: #f26a21;
+  --background: #0d0d0d;
+  --foreground: #e8e8e8;
+  --card: #111111;
+  --card-foreground: #e8e8e8;
+  --surface-2: #161616;
+  --surface-3: #1c1c1c;
+  --muted: #1c1c1c;
+  --muted-foreground: #888888;
+  --faint: #555555;
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --input-border: #3a3a3a;
+  --ring: #f97316;
 
-  --sidebar: #0c1832;
-  --sidebar-foreground: #c6d1e4;
-  --sidebar-muted: #7e93b8;
-  --sidebar-accent: #18294a;
+  --primary: #f97316;
+  --primary-foreground: #0d0d0d;
+  --accent: #f97316;
+  --accent-hover: #ea6c0a;
+  --accent-subtle: rgba(249, 115, 22, 0.08);
+
+  --navy: #161616;
+  --navy-foreground: #e8e8e8;
+
+  --sidebar: #111111;
+  --sidebar-foreground: #888888;
+  --sidebar-muted: #555555;
+  --sidebar-accent: rgba(255, 255, 255, 0.05);
+  --sidebar-active: #f97316;
 
   --success: #22c55e;
-  --warning: #f59e0b;
+  --warning: #eab308;
   --danger: #ef4444;
   --info: #3b82f6;
 
   /* Lighter badge text on dark surfaces (≥4.5:1 on the /10 tint). */
   --badge-success: #86efac;
-  --badge-warning: #fcd34d;
+  --badge-warning: #fde047;
   --badge-danger: #fca5a5;
   --badge-info: #93c5fd;
   --badge-primary: #fdba74;
@@ -80,16 +112,24 @@
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-faint: var(--faint);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-input: var(--input-border);
   --color-ring: var(--ring);
 
-  --color-navy: var(--navy);
-  --color-navy-foreground: var(--navy-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-subtle: var(--accent-subtle);
+
+  --color-navy: var(--navy);
+  --color-navy-foreground: var(--navy-foreground);
 
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
@@ -111,15 +151,16 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
-  --radius-xl: 0.875rem;
+  --radius-xl: 0.75rem;
 
-  /* Soft, navy-tinted layered shadows for a calmer, more premium depth than the
-     flat defaults. Used by cards (sm), menus/toasts (lg), dialogs/drawer (xl). */
-  --shadow-xs: 0 1px 2px 0 rgb(15 27 51 / 0.05);
-  --shadow-sm: 0 1px 2px 0 rgb(15 27 51 / 0.05), 0 2px 5px -1px rgb(15 27 51 / 0.06);
-  --shadow-md: 0 2px 6px -1px rgb(15 27 51 / 0.08), 0 6px 16px -3px rgb(15 27 51 / 0.08);
-  --shadow-lg: 0 6px 16px -4px rgb(15 27 51 / 0.10), 0 14px 36px -8px rgb(15 27 51 / 0.14);
-  --shadow-xl: 0 12px 26px -6px rgb(15 27 51 / 0.16), 0 28px 56px -12px rgb(15 27 51 / 0.20);
+  /* Subtle layered shadows — they all but vanish on the near-black surfaces
+     (intended: the dark console is flat), and give light-mode menus/dialogs/
+     toasts a calm depth. Cards/stat-cards are deliberately shadowless. */
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.20);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.22), 0 2px 5px -1px rgb(0 0 0 / 0.18);
+  --shadow-md: 0 2px 6px -1px rgb(0 0 0 / 0.28), 0 6px 16px -3px rgb(0 0 0 / 0.26);
+  --shadow-lg: 0 6px 16px -4px rgb(0 0 0 / 0.34), 0 14px 36px -8px rgb(0 0 0 / 0.42);
+  --shadow-xl: 0 12px 26px -6px rgb(0 0 0 / 0.46), 0 28px 56px -12px rgb(0 0 0 / 0.55);
 }
 
 * {
@@ -133,21 +174,8 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* A barely-there brand warmth in the dark console: one fixed radial glow from
-   the top-right so large empty areas don't read as a flat void. Decorative only
-   (non-repeating, fixed) - content contrast is unaffected. */
-.dark body {
-  background-image: radial-gradient(
-    55rem 36rem at 88% -8%,
-    rgb(242 106 33 / 0.05),
-    transparent 70%
-  );
-  background-attachment: fixed;
-}
-
-/* WCAG 2.3.3 - respect prefers-reduced-motion: collapse transitions/animations
-  to near-instant for users who opt out of motion (spinners, pulse dots,
-   hover-lifts, backdrop transitions). */
+/* WCAG 2.3.3 — respect prefers-reduced-motion: collapse transitions/animations
+   to near-instant for users who opt out of motion. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -157,65 +185,4 @@ body {
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
-}
-
-/* ── AI mode "motel sign" (topbar) ────────────────────────────────────────────
-   The "AI" switch reads like a motel vacancy sign: a dim, dead neon tube when
-   off; a glowing orange tube (with a faint buzz) when on. The global
-   prefers-reduced-motion rule above already tames the buzz to a single cycle. */
-@keyframes neon-ai-buzz {
-  0%, 19%, 21%, 24%, 56%, 59%, 100% { opacity: 1; }
-  20%, 23%, 57% { opacity: 0.6; }
-}
-.neon-ai {
-  font-weight: 800;
-  font-size: 0.9rem;
-  line-height: 1;
-  letter-spacing: 0.24em;
-  padding: 0.3rem 0.55rem 0.3rem 0.72rem;
-  border: 1px solid;
-  border-radius: 0.4rem;
-  cursor: pointer;
-  user-select: none;
-  transition: color 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease,
-    text-shadow 0.35s ease, background-color 0.35s ease;
-}
-/* OFF - unlit. Light theme: a legible but muted painted sign in daylight.
-   Dark theme: a dim, dead neon tube. */
-.neon-ai-off {
-  color: rgb(100 116 139 / 0.9);
-  border-color: rgb(100 116 139 / 0.4);
-  background-color: transparent;
-}
-.neon-ai-off:hover {
-  color: var(--primary);
-  border-color: rgb(242 106 33 / 0.55);
-}
-.dark .neon-ai-off {
-  color: rgb(148 163 184 / 0.3);
-  border-color: rgb(148 163 184 / 0.16);
-}
-.dark .neon-ai-off:hover {
-  color: rgb(242 106 33 / 0.7);
-  border-color: rgb(242 106 33 / 0.45);
-  text-shadow: 0 0 6px rgb(242 106 33 / 0.45);
-}
-/* ON - lit. Light theme: a solid, bright painted sign - neon doesn't glow in
-   daylight, so the sign reads as filled rather than glowing. */
-.neon-ai-on {
-  color: #ffffff;
-  border-color: #f26a21;
-  background-color: #f26a21;
-  box-shadow: 0 1px 7px rgb(242 106 33 / 0.5);
-}
-/* ON - Dark theme: a glowing neon tube against the night. */
-.dark .neon-ai-on {
-  color: #fff4ea;
-  border-color: rgb(242 106 33 / 0.9);
-  background-color: rgb(242 106 33 / 0.1);
-  text-shadow: 0 0 5px rgb(255 178 120 / 1), 0 0 14px rgb(242 106 33 / 0.95),
-    0 0 26px rgb(242 106 33 / 0.7), 0 0 40px rgb(242 106 33 / 0.4);
-  box-shadow: 0 0 9px rgb(242 106 33 / 0.6), 0 0 22px rgb(242 106 33 / 0.4),
-    inset 0 0 11px rgb(242 106 33 / 0.32);
-  animation: neon-ai-buzz 5s infinite;
 }

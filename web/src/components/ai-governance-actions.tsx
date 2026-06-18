@@ -76,7 +76,7 @@ export function AddAIGovernanceButton({ kind }: { kind: ModalKind }) {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={button({ size: "md" })}>
+      <button type="button" onClick={() => setOpen(true)} className={button({ variant: "outline", size: "md" })}>
         <Plus className="size-4" />
         {labels[kind]}
       </button>
@@ -235,7 +235,7 @@ export function GatewaySmokeButton() {
   }
 
   return (
-    <button type="button" onClick={run} disabled={busy} className={cn(button({ size: "md" }), busy && "opacity-70")}>
+    <button type="button" onClick={run} disabled={busy} className={cn(button({ variant: "outline", size: "md" }), busy && "opacity-70")}>
       {busy ? <Loader2 className="size-4 animate-spin" /> : <WandSparkles className="size-4" />}
       Smoke test gateway
     </button>

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
-import { Loader2, Send } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import type { AIService } from "@/lib/types";
 import { authHeaders } from "@/lib/client-auth";
 import { button } from "@/components/ui/button";
@@ -83,9 +83,13 @@ export function AIRequestButton({ service }: { service: AIService }) {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={button({ size: "sm" })}>
-        <Send className="size-4" />
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-1 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+      >
         Request
+        <ArrowRight className="size-3.5" />
       </button>
       {open &&
         typeof document !== "undefined" &&

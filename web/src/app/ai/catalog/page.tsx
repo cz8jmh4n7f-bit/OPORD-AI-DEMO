@@ -1,9 +1,6 @@
-import { Bot, Sparkles } from "lucide-react";
 import { AIRequestButton } from "@/components/ai-request-button";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import { fetchAIServices } from "@/lib/api";
 
 export const metadata = { title: "AI Services" };
@@ -12,56 +9,54 @@ export default async function AICatalogPage() {
   const services = await fetchAIServices();
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="AI Services" description="Request governed AI access through OPORD's existing approval workflow." />
+    <div className="space-y-5">
+      <PageHeader
+        title="AI Services"
+        description="Request governed AI access through OPORD's existing approval workflow."
+      />
 
       {services.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={Bot}
-            title="No AI services yet"
-            description="Run the AI migration or add a mock AI provider to populate the MVP catalog."
-            action={{ href: "/ai/providers", label: "AI providers" }}
-          />
-        </Card>
+        <EmptyState
+          title="No AI services yet"
+          description="Run the AI migration or add a mock AI provider to populate the catalog."
+          action={{ href: "/ai/providers", label: "AI providers" }}
+        />
       ) : (
-        // Provider-first: group the catalog by provider so it's clear which
-        // services belong to Anthropic / LiteLLM / a mock, etc. (the same
-        // provider-first shape as the infra catalog). Stable, first-appearance order.
-        <div className="space-y-8">
+        // Provider-first catalog as a list (not equal cards): each provider is a
+        // bordered group; each service is a row with a ghost request link.
+        <div className="space-y-6">
           {groupByProvider(services).map((group) => (
-            <section key={group.providerName} className="space-y-3">
-              <div className="flex items-center gap-2 border-b border-border pb-2">
-                <h2 className="text-sm font-semibold text-foreground">{group.providerName}</h2>
-                <Badge variant="info">{group.providerType}</Badge>
-                <span className="text-xs text-muted-foreground">
+            <section key={group.providerName} className="space-y-2">
+              <div className="flex items-center gap-2 px-1">
+                <h2 className="text-[13px] font-medium text-foreground">{group.providerName}</h2>
+                <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[11px] text-faint">
+                  {group.providerType}
+                </span>
+                <span className="text-xs text-faint">
                   {group.items.length} service{group.items.length === 1 ? "" : "s"}
                 </span>
               </div>
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+
+              <div className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-surface-2">
                 {group.items.map((service) => (
-                  <Card key={service.id} className="flex h-full flex-col p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                        <Sparkles className="size-5" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <h3 className="text-sm font-semibold text-foreground">{service.name}</h3>
+                  <div
+                    key={service.id}
+                    className="flex items-start justify-between gap-4 px-4 py-3.5 transition-colors hover:bg-surface-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-[13px] font-medium text-foreground">{service.name}</h3>
+                      <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground">{service.description}</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        <Tag>{service.category}</Tag>
+                        <Tag>{service.requiresApproval ? "approval required" : "auto-approved"}</Tag>
+                        <Tag>{service.defaultExpirationDays}d default</Tag>
+                        <span className="ml-1 font-mono text-[11px] text-faint">{service.slug}</span>
                       </div>
                     </div>
-                    <p className="mt-3 min-h-12 text-sm leading-6 text-muted-foreground">{service.description}</p>
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      <Badge variant="info">{service.category}</Badge>
-                      <Badge variant={service.requiresApproval ? "warning" : "success"}>
-                        {service.requiresApproval ? "Approval required" : "Auto-approved"}
-                      </Badge>
-                      <Badge variant="default">{service.defaultExpirationDays}d default</Badge>
-                    </div>
-                    <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
-                      <span className="font-mono text-xs text-muted-foreground">{service.slug}</span>
+                    <div className="shrink-0 pt-0.5">
                       <AIRequestButton service={service} />
                     </div>
-                  </Card>
+                  </div>
                 ))}
               </div>
             </section>
@@ -69,6 +64,15 @@ export default async function AICatalogPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// Tag — a tiny monospace, bordered label (not a colored pill).
+function Tag({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+      {children}
+    </span>
   );
 }
 

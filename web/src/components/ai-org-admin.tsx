@@ -162,7 +162,7 @@ function InviteUserButton({ provider, providerType }: { provider: string; provid
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={button({ size: "sm" })}>
+      <button type="button" onClick={() => setOpen(true)} className={button({ variant: "outline", size: "sm" })}>
         <UserPlus className="size-4" />
         Invite user
       </button>
@@ -340,7 +340,7 @@ function CreateWorkspaceButton({ provider }: { provider: string }) {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={button({ size: "sm" })}>
+      <button type="button" onClick={() => setOpen(true)} className={button({ variant: "outline", size: "sm" })}>
         <Plus className="size-4" />
         New workspace
       </button>

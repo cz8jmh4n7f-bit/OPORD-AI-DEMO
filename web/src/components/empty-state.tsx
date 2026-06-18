@@ -1,35 +1,29 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import { button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
-// EmptyState is the friendly "nothing here yet" placeholder for list pages: an
-// icon, a title, a short description, and an optional primary action.
+// EmptyState — left-aligned, text-only. No illustration, no icon-in-circle, no
+// filled button: emptiness is fine. An optional inline text link points to the
+// next step. The `icon` prop is accepted but not rendered (kept for compat).
 export function EmptyState({
-  icon: Icon,
   title,
   description,
   action,
 }: {
-  icon: LucideIcon;
+  icon?: LucideIcon;
   title: string;
   description?: string;
   action?: { href: string; label: string };
 }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
-      <div className="grid size-12 place-items-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15">
-        <Icon className="size-6" />
-      </div>
-      <div className="space-y-1">
-        <p className="text-sm font-semibold text-foreground">{title}</p>
-        {description && (
-          <p className="mx-auto max-w-sm text-sm text-muted-foreground">{description}</p>
-        )}
-      </div>
+    <div className="px-1 py-10">
+      <p className="text-sm font-medium text-muted-foreground">{title}</p>
+      {description && <p className="mt-1 max-w-prose text-sm text-faint">{description}</p>}
       {action && (
-        <Link href={action.href} className={cn(button({ size: "sm" }), "mt-1")}>
-          {action.label}
+        <Link
+          href={action.href}
+          className="mt-3 inline-flex items-center gap-1 text-[13px] font-medium text-primary transition-colors hover:text-accent-hover"
+        >
+          {action.label} →
         </Link>
       )}
     </div>

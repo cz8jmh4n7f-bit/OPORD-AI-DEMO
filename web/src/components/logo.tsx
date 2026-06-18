@@ -19,8 +19,8 @@ export function LogoMark({ className }: { className?: string }) {
 export function Logo({ className }: { className?: string }) {
   return (
     <div className={cn("flex items-center gap-2.5", className)}>
-      <LogoMark className="h-6 text-white" />
-      <span className="text-lg font-bold tracking-tight text-white">OPORD</span>
+      <LogoMark className="h-5 text-foreground" />
+      <span className="text-[15px] font-semibold tracking-tight text-foreground">OPORD</span>
     </div>
   );
 }

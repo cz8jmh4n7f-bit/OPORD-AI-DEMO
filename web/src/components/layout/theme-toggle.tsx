@@ -2,7 +2,6 @@
 
 import { useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 // The theme lives in the DOM (the `dark` class on <html>), so we read it as an
 // external store rather than mirroring it into React state via an effect. A
@@ -33,8 +32,13 @@ export function ThemeToggle() {
   }
 
   return (
-    <Button variant="ghost" size="icon" aria-label="Toggle theme" onClick={toggle}>
-      {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
-    </Button>
+    <button
+      type="button"
+      aria-label="Toggle theme"
+      onClick={toggle}
+      className="grid size-7 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-surface-3 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {dark ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
+    </button>
   );
 }

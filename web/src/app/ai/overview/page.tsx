@@ -1,21 +1,6 @@
 import Link from "next/link";
-import {
-  Bot,
-  ChartNoAxesCombined,
-  CircleDollarSign,
-  History,
-  MessageSquarePlus,
-  Server,
-  ShieldCheck,
-  SlidersHorizontal,
-  Sparkles,
-} from "lucide-react";
-import { EmptyState } from "@/components/empty-state";
-import { PageHeader } from "@/components/page-header";
-import { StatCard } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
-import { button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import {
   fetchAIAudit,
   fetchAIBudgets,
@@ -28,7 +13,7 @@ import {
 } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 
-export const metadata = { title: "AI workspace" };
+export const metadata = { title: "Overview" };
 
 type BadgeVariant = "default" | "primary" | "success" | "warning" | "danger" | "info";
 
@@ -39,6 +24,20 @@ function auditTone(action: string): BadgeVariant {
   if (a.includes("warning")) return "warning";
   if (a.includes("created") || a.includes("granted") || a.includes("checked") || a.includes("synced")) return "success";
   return "info";
+}
+
+// A status dot for the posture bar: gray when nothing's set, green when active,
+// red when something needs attention.
+function Dot({ tone }: { tone: "idle" | "active" | "alert" }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "inline-block size-1.5 rounded-full",
+        tone === "alert" ? "bg-danger" : tone === "active" ? "bg-success" : "bg-faint",
+      )}
+    />
+  );
 }
 
 export default async function AIOverviewPage() {
@@ -60,131 +59,120 @@ export default async function AIOverviewPage() {
   const budgetsAtRisk = budgets.filter((b) => b.status === "warning" || b.status === "hard_limit").length;
   const spend = budgets.reduce((sum, b) => sum + (b.actualUsd || 0), 0);
 
+  const cell = "rounded-lg border border-border bg-surface-2 p-4 transition-colors hover:border-border-strong";
+  const cellLabel = "text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground";
+
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="AI workspace"
-        description="Governed access to AI services - request, approve, meter, and audit, on the platform you already run."
-      >
-        <Link href="/ai/catalog" className={button({ size: "sm" })}>
-          <Sparkles className="size-4" />
-          Browse AI services
-        </Link>
-      </PageHeader>
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-[18px] font-medium tracking-tight text-foreground">AI workspace</h1>
+        <p className="mt-1 text-[13px] text-muted-foreground">
+          Governed access to AI services - request, approve, meter, and audit, on the platform you already run.
+        </p>
+      </div>
 
-      {/* The Phase-1 payoff, made visible: governance is actually enforced. */}
-      <Card className="flex items-start gap-3 border-primary/30 bg-primary/5 p-4">
-        <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-          <ShieldCheck className="size-5" />
-        </span>
-        <div className="text-sm">
-          <p className="font-medium text-foreground">Governance is enforced</p>
-          <p className="mt-0.5 text-muted-foreground">
-            Every AI request is checked against active <span className="text-foreground">policies</span>, seat{" "}
-            <span className="text-foreground">quotas</span>, and <span className="text-foreground">budgets</span> before
-            access is granted - blocked requests are refused with a reason and audited.
-          </p>
-        </div>
-      </Card>
-
+      {/* Asymmetric hero: tracked spend dominates; providers + pending ride alongside. */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={Server} label="AI providers" value={providers.length} hint="Registered backends" />
-        <StatCard icon={Sparkles} label="Catalog services" value={services.length} hint="Requestable entitlements" />
-        <StatCard
-          icon={Bot}
-          label="Active access"
-          value={activeAccess}
-          hint="Live instances"
-          accent="bg-success/10 text-success"
-        />
-        <StatCard
-          icon={MessageSquarePlus}
-          label="Pending requests"
-          value={pending}
-          hint="Awaiting approval"
-          accent={pending > 0 ? "bg-warning/10 text-warning" : undefined}
-        />
-      </div>
+        <div className={cn(cell, "flex flex-col sm:col-span-2")}>
+          <span className={cellLabel}>Tracked spend</span>
+          <div
+            className={cn(
+              "mt-3 text-[34px] font-semibold leading-none tabular-nums",
+              spend === 0 ? "text-muted-foreground" : "text-foreground",
+            )}
+          >
+            {`$${spend.toFixed(2)}`}
+          </div>
+          <p className="mt-1.5 text-xs text-faint">Across all budget scopes</p>
+          <div className="mt-auto flex flex-wrap gap-x-4 gap-y-1 pt-4 text-xs text-faint">
+            <span>
+              Active access <span className="text-muted-foreground tabular-nums">{activeAccess}</span>
+            </span>
+            <span>
+              Catalog <span className="text-muted-foreground tabular-nums">{services.length}</span>
+            </span>
+          </div>
+        </div>
 
-      <div className="space-y-3">
-        <h2 className="text-sm font-semibold tracking-tight text-foreground">Governance posture</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard icon={ShieldCheck} label="Active policies" value={activePolicies} hint={`${policies.length} total`} />
-          <StatCard
-            icon={SlidersHorizontal}
-            label="Blocking quotas"
-            value={blockingQuotas}
-            hint={`${quotas.length} quotas`}
-          />
-          <StatCard
-            icon={CircleDollarSign}
-            label="Budgets at risk"
-            value={budgetsAtRisk}
-            hint={`${budgets.length} budgets`}
-            accent={budgetsAtRisk > 0 ? "bg-warning/10 text-warning" : undefined}
-          />
-          <StatCard
-            icon={ChartNoAxesCombined}
-            label="Tracked spend"
-            value={`$${spend.toFixed(2)}`}
-            hint="Across budget scopes"
-          />
+        <div className={cn(cell, "flex flex-col")}>
+          <span className={cellLabel}>AI providers</span>
+          <div
+            className={cn(
+              "mt-3 text-[28px] font-semibold leading-none tabular-nums",
+              providers.length === 0 ? "text-muted-foreground" : "text-foreground",
+            )}
+          >
+            {providers.length}
+          </div>
+          <p className="mt-1.5 text-xs text-faint">Backends</p>
+        </div>
+
+        <div className={cn(cell, "flex flex-col")}>
+          <span className={cellLabel}>Pending requests</span>
+          <div
+            className={cn(
+              "mt-3 text-[28px] font-semibold leading-none tabular-nums",
+              pending === 0 ? "text-muted-foreground" : "text-foreground",
+            )}
+          >
+            {pending}
+          </div>
+          <Link href="/ai/requests" className="mt-auto pt-3 text-xs text-faint transition-colors hover:text-foreground">
+            Awaiting approval →
+          </Link>
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2 p-0">
-          <div className="flex items-center justify-between border-b border-border px-5 py-3">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <History className="size-4 text-muted-foreground" />
-              Recent activity
-            </h2>
-            <Link href="/ai/audit" className="text-xs font-medium text-primary hover:underline">
-              Full audit
-            </Link>
-          </div>
-          {audit.length === 0 ? (
-            <EmptyState icon={History} title="No AI activity yet" description="Requests, approvals, and grants show up here." />
-          ) : (
-            <ul className="divide-y divide-border">
-              {audit.slice(0, 6).map((e) => (
-                <li key={e.id} className="flex items-start gap-3 px-5 py-3">
-                  <Badge variant={auditTone(e.action)}>{e.action.replace(/_/g, " ")}</Badge>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm text-foreground">{e.message}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {e.actor} · {formatDate(e.createdAt)}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
+      {/* Governance posture: one horizontal line, not four cards. */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-border bg-surface-2 px-4 py-3 text-[13px]">
+        <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-faint">Governance posture</span>
+        <span className="flex items-center gap-2 text-muted-foreground">
+          <Dot tone={activePolicies > 0 ? "active" : "idle"} />
+          Policies <span className="text-foreground tabular-nums">{activePolicies}</span>
+        </span>
+        <span className="flex items-center gap-2 text-muted-foreground">
+          <Dot tone={blockingQuotas > 0 ? "active" : "idle"} />
+          Quotas <span className="text-foreground tabular-nums">{blockingQuotas}</span>
+        </span>
+        <span className="flex items-center gap-2 text-muted-foreground">
+          <Dot tone={budgetsAtRisk > 0 ? "alert" : "idle"} />
+          Budgets at risk <span className="text-foreground tabular-nums">{budgetsAtRisk}</span>
+        </span>
+        <span className="flex items-center gap-2 text-muted-foreground">
+          <Dot tone={spend > 0 ? "active" : "idle"} />
+          <span className="text-foreground tabular-nums">{`$${spend.toFixed(2)}`}</span> tracked
+        </span>
+      </div>
 
-        <Card className="p-0">
-          <div className="border-b border-border px-5 py-3">
-            <h2 className="text-sm font-semibold text-foreground">Jump to</h2>
+      {/* Recent activity is the dominant element: full width. */}
+      <section className="rounded-lg border border-border bg-surface-2">
+        <div className="flex items-center justify-between px-4 py-3">
+          <h2 className="text-[11px] font-medium uppercase tracking-[0.06em] text-faint">Recent activity</h2>
+          <Link href="/ai/audit" className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
+            Full audit →
+          </Link>
+        </div>
+        {audit.length === 0 ? (
+          <div className="px-4 pb-6 pt-1">
+            <p className="text-sm font-medium text-muted-foreground">No activity yet</p>
+            <p className="mt-1 text-sm text-faint">Requests, approvals, and grants will appear here.</p>
           </div>
-          <ul className="divide-y divide-border text-sm">
-            {[
-              { href: "/ai/requests", label: "Requests", icon: MessageSquarePlus },
-              { href: "/ai/instances", label: "Active access", icon: Bot },
-              { href: "/ai/budgets", label: "Budgets", icon: CircleDollarSign },
-              { href: "/ai/quotas", label: "Quotas", icon: SlidersHorizontal },
-              { href: "/ai/policies", label: "Policies", icon: ShieldCheck },
-              { href: "/ai/providers", label: "Providers", icon: Server },
-            ].map((l) => (
-              <li key={l.href}>
-                <Link href={l.href} className="flex items-center gap-3 px-5 py-2.5 text-foreground hover:bg-muted/60">
-                  <l.icon className="size-4 text-muted-foreground" />
-                  {l.label}
-                </Link>
+        ) : (
+          <ul className="divide-y divide-border border-t border-border">
+            {audit.slice(0, 8).map((e) => (
+              <li key={e.id} className="flex items-start gap-3 px-4 py-2.5">
+                <Badge variant={auditTone(e.action)}>{e.action.replace(/_/g, " ")}</Badge>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] text-foreground">{e.message}</p>
+                  <p className="mt-0.5 text-xs text-faint">
+                    {e.actor} · {formatDate(e.createdAt)}
+                  </p>
+                </div>
               </li>
             ))}
           </ul>
-        </Card>
-      </div>
+        )}
+      </section>
     </div>
   );
 }

@@ -79,7 +79,7 @@ export function AddAIProviderButton() {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={button({ size: "md" })}>
+      <button type="button" onClick={() => setOpen(true)} className={button({ variant: "outline", size: "md" })}>
         <Plus className="size-4" />
         Add AI provider
       </button>

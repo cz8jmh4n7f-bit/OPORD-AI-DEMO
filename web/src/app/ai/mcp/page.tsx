@@ -83,7 +83,7 @@ export default async function MCPGovernancePage() {
           <h2 className="text-sm font-semibold">Access grants ({grants.filter((g) => g.status === "active").length} active)</h2>
         </div>
         {grants.length === 0 ? (
-          <p className="px-5 py-8 text-center text-sm text-muted-foreground">No grants yet. Use “Grant” on a server to allow a team.</p>
+          <p className="px-5 py-6 text-sm text-faint">No grants yet. Use “Grant” on a server to allow a team.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

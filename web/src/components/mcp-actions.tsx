@@ -75,7 +75,7 @@ export function RegisterMCPServerButton() {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={button({ size: "sm" })}>
+      <button type="button" onClick={() => setOpen(true)} className={button({ variant: "outline", size: "sm" })}>
         <Plus className="size-4" />
         Register MCP server
       </button>
@@ -380,7 +380,7 @@ export function AuthorizeTester({ servers }: { servers: MCPServer[] }) {
         </select>
         <input className={inputCls} value={owner} onChange={(e) => setOwner(e.target.value)} placeholder="owner / team" required />
         <input className={inputCls} value={tool} onChange={(e) => setTool(e.target.value)} placeholder="tool (optional)" />
-        <button type="submit" disabled={busy || !server} className={button({ size: "sm" })}>
+        <button type="submit" disabled={busy || !server} className={button({ variant: "outline", size: "sm" })}>
           {busy ? <Loader2 className="size-4 animate-spin" /> : "Check"}
         </button>
       </div>

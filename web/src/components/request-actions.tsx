@@ -73,7 +73,7 @@ export function RequestActions({ name, environment, status }: { name: string; en
 
   return (
     <div className="flex items-center justify-end gap-2">
-      <button type="button" onClick={() => decide("approve")} disabled={!!busy} className={cn(button({ size: "sm" }))}>
+      <button type="button" onClick={() => decide("approve")} disabled={!!busy} className={cn(button({ variant: "outline", size: "sm" }))}>
         {busy === "approve" ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
         Approve
       </button>
