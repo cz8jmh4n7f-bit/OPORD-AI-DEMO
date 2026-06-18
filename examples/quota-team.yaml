@@ -1,0 +1,10 @@
+# A monthly token quota for the team's gateway traffic.  POST /api/v1/ai/quotas
+#
+# Quotas are per-service (serviceSlug). Seat/instance metrics are enforced at
+# request time; token/cost metrics bite on the gateway path (every proxied call
+# meters usage against the limit). enforcement: block (refuse over-limit) | warn.
+serviceSlug: openai-responses-gateway
+metric: tokens
+limitQuantity: 5000000          # 5M tokens / month
+period: monthly
+enforcement: block

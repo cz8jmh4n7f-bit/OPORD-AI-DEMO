@@ -1,0 +1,24 @@
+# Register an OpenAI provider, then cap its monthly spend.
+# OPORD reads the key from OpenBao by secret_ref - it is never stored in the DB.
+# This file has two documents (--- separated): the provider, then its budget.
+#
+#   POST /api/v1/ai/providers   <- document 1
+#   POST /api/v1/ai/budgets     <- document 2
+
+# --- provider registration (POST /api/v1/ai/providers) ---
+name: openai-main
+type: openai
+secretRef: opord/ai/openai-main      # OpenBao KV path holding api_key; omit to use OPENAI_API_KEY
+config:
+  governance_only: true
+scopes:
+  - models:read
+  - access:govern
+---
+# --- spend cap for this provider (POST /api/v1/ai/budgets) ---
+scope: provider
+scopeRef: openai-main
+limitUsd: 500
+period: monthly
+softThresholdPct: 80      # audit a warning at 80% of the limit
+hardThresholdPct: 100     # block new grants + gateway calls at 100%

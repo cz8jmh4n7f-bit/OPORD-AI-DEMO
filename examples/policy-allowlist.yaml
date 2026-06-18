@@ -1,0 +1,19 @@
+# Model allowlist: restrict an OpenAI project to gpt-4o only (so gpt-4-32k and
+# every other model are denied).  POST /api/v1/ai/requests
+#
+# Note on the real schema: OPORD *policies* (POST /api/v1/ai/policies) gate by
+# provider / category / service / owner-domain - they have NO per-model field.
+# A per-model allowlist is applied through the "openai-model-permissions" service:
+# request it, approve it, and OPORD sets the project's model allow-list via the
+# OpenAI Administration API. (mode: allow_list = only model_ids are permitted.)
+name: openai-gpt4o-only
+requester: platform@acme.com
+serviceSlug: openai-model-permissions
+owner: platform@acme.com
+workspace: engineering
+justification: "Standardize the engineering project on gpt-4o; deny legacy 32k models"
+metadata:
+  project_id: proj_abc123        # the OpenAI project to constrain
+  mode: allow_list               # allow_list | deny_list
+  model_ids:
+    - gpt-4o

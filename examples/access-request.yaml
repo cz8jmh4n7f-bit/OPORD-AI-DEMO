@@ -1,0 +1,18 @@
+# A user requests governed access to an AI service.  POST /api/v1/ai/requests
+#
+# An operator then approves it: POST /api/v1/ai/requests/{name}/approve
+# On approval OPORD creates a time-boxed access instance - checked against your
+# active policies, quotas, and budgets first (a blocked request returns 403).
+# serviceSlug is a slug from GET /api/v1/ai/services (e.g. openai-api-access).
+# Use serviceId instead when two providers advertise the same slug.
+name: jane-openai-access
+requester: jane@acme.com
+serviceSlug: openai-api-access
+owner: jane@acme.com
+workspace: engineering
+justification: "Support-bot prototype - needs OpenAI API access for the build"
+expiresAt: "2026-08-01T00:00:00Z"
+metadata:
+  models:
+    - gpt-4o
+    - gpt-4o-mini

@@ -1,0 +1,12 @@
+# A department-level monthly spend cap.  POST /api/v1/ai/budgets
+#
+# scope is one of: global | provider | owner | workspace | tenant.
+# scopeRef names the thing being scoped (here, the engineering workspace).
+# At the soft threshold OPORD audits a warning; at the hard threshold it blocks
+# new access grants and gateway calls. Actuals come from usage + imported spend.
+scope: workspace
+scopeRef: engineering
+limitUsd: 2000
+period: monthly
+softThresholdPct: 80
+hardThresholdPct: 100
