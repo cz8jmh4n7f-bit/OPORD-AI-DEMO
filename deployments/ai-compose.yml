@@ -1,4 +1,4 @@
-# OPORD - AI Service Governance: self-contained stack (db + migrate + api + worker + web).
+# OPORD - AI Service Governance: self-contained stack (db + migrate + api + web).
 #
 #   docker compose -f deployments/ai-compose.yml up --build
 #
@@ -72,7 +72,7 @@ services:
   # Auto-init / auto-unseal daemon: first boot initializes (1 share) and stores
   # the unseal key in the data volume (.init.txt - fine for a LOCAL test stack);
   # every later boot just unseals. Also ensures the secret/ KV v2 mount and the
-  # fixed opord-ai-root service token the api/worker use.
+  # fixed opord-ai-root service token the api uses.
   openbao-init:
     image: openbao/openbao:2.5.4
     restart: unless-stopped
@@ -128,20 +128,6 @@ services:
       timeout: 5s
       retries: 12
       start_period: 10s
-
-  worker:
-    build:
-      context: ..
-      dockerfile: Dockerfile
-      target: worker
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: "postgres://opord:opord@db:5432/opord?sslmode=disable"
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-    depends_on:
-      api:
-        condition: service_healthy
 
   web:
     build:
