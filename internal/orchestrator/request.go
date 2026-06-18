@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
-	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/models"
 )
 
 // CreateRequestInput is a self-service request for a resource/environment that
@@ -16,14 +15,13 @@ type CreateRequestInput struct {
 	Name        string
 	Environment string
 	Requester   string
-	Kind        string // vm | cluster | database | stack | environment
+	Kind        string // ai_service
 	Provider    string
-	Blueprint   string          // for kind=environment
-	Spec        json.RawMessage // kind-specific spec (VMSpec / ClusterSpec / ...)
+	Blueprint   string          // reserved (unused for ai_service)
+	Spec        json.RawMessage // kind-specific spec
 }
 
 var validRequestKinds = map[string]bool{
-	"vm": true, "cluster": true, "database": true, "stack": true, "environment": true, "project": true, "account": true,
 	"ai_service": true,
 }
 
@@ -34,7 +32,7 @@ func (s *Service) CreateRequest(ctx context.Context, in CreateRequestInput) (*db
 		return nil, fmt.Errorf("request name, provider and kind are required")
 	}
 	if !validRequestKinds[in.Kind] {
-		return nil, fmt.Errorf("invalid request kind %q (want vm|cluster|database|stack|environment|project|account|ai_service)", in.Kind)
+		return nil, fmt.Errorf("invalid request kind %q (want ai_service)", in.Kind)
 	}
 	env := in.Environment
 	if env == "" {
@@ -121,57 +119,12 @@ func (s *Service) ApproveRequest(ctx context.Context, name, env, approvedBy stri
 // Create* provisions in the background.
 func (s *Service) provisionRequest(ctx context.Context, req db.Request) (string, string, error) {
 	switch req.Kind {
-	case "vm":
-		var spec models.VMSpec
-		if err := json.Unmarshal(req.Spec, &spec); err != nil {
-			return "", "", fmt.Errorf("decoding vm spec: %w", err)
-		}
-		_, err := s.CreateVM(ctx, CreateVMInput{Name: req.Name, Environment: req.Environment, Provider: req.Provider, Spec: spec})
-		return req.Name, "provisioning", err
-	case "cluster":
-		var spec models.ClusterSpec
-		if err := json.Unmarshal(req.Spec, &spec); err != nil {
-			return "", "", fmt.Errorf("decoding cluster spec: %w", err)
-		}
-		_, err := s.CreateCluster(ctx, CreateClusterInput{Name: req.Name, Environment: req.Environment, Provider: req.Provider, Spec: spec})
-		return req.Name, "provisioning", err
-	case "database":
-		var spec models.DatabaseSpec
-		if err := json.Unmarshal(req.Spec, &spec); err != nil {
-			return "", "", fmt.Errorf("decoding database spec: %w", err)
-		}
-		_, err := s.CreateDatabase(ctx, CreateDatabaseInput{Name: req.Name, Environment: req.Environment, Provider: req.Provider, Spec: spec})
-		return req.Name, "provisioning", err
-	case "stack":
-		var spec models.StackSpec
-		if err := json.Unmarshal(req.Spec, &spec); err != nil {
-			return "", "", fmt.Errorf("decoding stack spec: %w", err)
-		}
-		_, err := s.CreateStack(ctx, CreateStackInput{Name: req.Name, Environment: req.Environment, Provider: req.Provider, Spec: spec})
-		return req.Name, "provisioning", err
-	case "project":
-		var spec models.ProjectSpec
-		if err := json.Unmarshal(req.Spec, &spec); err != nil {
-			return "", "", fmt.Errorf("decoding project spec: %w", err)
-		}
-		_, err := s.CreateProject(ctx, CreateProjectInput{Name: req.Name, Environment: req.Environment, Provider: req.Provider, Spec: spec})
-		return req.Name, "provisioning", err
-	case "account":
-		var spec models.AccountSpec
-		if err := json.Unmarshal(req.Spec, &spec); err != nil {
-			return "", "", fmt.Errorf("decoding account spec: %w", err)
-		}
-		_, err := s.CreateAccount(ctx, CreateAccountInput{Name: req.Name, Environment: req.Environment, Provider: req.Provider, Spec: spec})
-		return req.Name, "provisioning", err
 	case "ai_service":
 		inst, err := s.ProvisionAIRequest(ctx, req)
 		if err != nil {
 			return "", "", err
 		}
 		return inst.ID.String(), "completed", nil
-	case "environment":
-		_, err := s.CreateEnvironment(ctx, CreateEnvironmentInput{Name: req.Name, Environment: req.Environment, Provider: req.Provider, Blueprint: req.Blueprint})
-		return req.Name, "provisioning", err
 	default:
 		return "", "", fmt.Errorf("unknown request kind %q", req.Kind)
 	}

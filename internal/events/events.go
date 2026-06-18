@@ -55,7 +55,7 @@ type SinkConfig struct {
 }
 
 // FromConfig builds a bus with the always-on audit sink plus any configured
-// connectors (Slack webhook, SIEM HTTP, GLPI CMDB).
+// connectors (Slack webhook, SIEM HTTP).
 func FromConfig(c SinkConfig, log *slog.Logger) *Bus {
 	sinks := []Sink{NewAuditSink(log)}
 	if c.SlackWebhookURL != "" {
@@ -63,9 +63,6 @@ func FromConfig(c SinkConfig, log *slog.Logger) *Bus {
 	}
 	if c.SIEMURL != "" {
 		sinks = append(sinks, NewSIEMSink(c.SIEMURL, "opord"))
-	}
-	if c.GLPIURL != "" && c.GLPIAppToken != "" && c.GLPIUserToken != "" {
-		sinks = append(sinks, NewGLPISink(c.GLPIURL, c.GLPIAppToken, c.GLPIUserToken, c.GLPIItemType))
 	}
 	return NewBus(log, sinks...)
 }

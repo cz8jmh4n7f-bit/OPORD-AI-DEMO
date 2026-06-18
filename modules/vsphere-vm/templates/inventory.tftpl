@@ -1,8 +1,0 @@
-[all]
-%{ for n in vms ~}
-${n.name} ansible_host=${n.ip}
-%{ endfor ~}
-
-[all:vars]
-ansible_user=${ssh_user}
-ansible_python_interpreter=/usr/bin/python3

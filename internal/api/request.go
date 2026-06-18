@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/orchestrator"
+	"github.com/go-chi/chi/v5"
 )
 
 type requestDTO struct {

@@ -1,4 +1,0 @@
----
-k8s_version: "1.34.3"
-k8s_apt_version: "1.34.3-*"
-k8s_apt_repo_version: "v1.34"

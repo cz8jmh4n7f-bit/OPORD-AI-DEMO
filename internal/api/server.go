@@ -1,33 +1,23 @@
-// Package api exposes the OPORD orchestrator over HTTP. Handlers are thin: they
-// decode requests, call the same orchestrator.Service the CLI uses, and encode
-// DTOs. No business logic lives here.
+// Package api exposes the OPORD AI governance orchestrator over HTTP. Handlers
+// are thin: they decode requests, call the same orchestrator.Service the CLI
+// uses, and encode DTOs. No business logic lives here.
 package api
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/auth"
-	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/jobs"
-	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/models"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/orchestrator"
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-// JobLister reads the durable job queue (River). Optional: when nil, the queue
-// endpoint returns an empty list (e.g. River not configured).
-type JobLister interface {
-	ListJobs(ctx context.Context, limit int) ([]jobs.JobInfo, error)
-}
-
 // Server holds the dependencies for the HTTP API.
 type Server struct {
 	svc         *orchestrator.Service
-	queue       JobLister
 	authResolve auth.Resolver
 	authEnabled bool
 	log         *slog.Logger
@@ -40,9 +30,6 @@ func NewServer(svc *orchestrator.Service, log *slog.Logger) *Server {
 	}
 	return &Server{svc: svc, log: log}
 }
-
-// SetJobLister wires the durable queue so /api/v1/queue can report River jobs.
-func (s *Server) SetJobLister(q JobLister) { s.queue = q }
 
 // SetAuth wires API-key authentication. When enabled is false, the API runs
 // open (dev mode) with a default admin identity.
@@ -67,54 +54,8 @@ func (s *Server) Routes() http.Handler {
 		r.Group(func(r chi.Router) {
 			r.Use(auth.RequireRole(auth.RoleViewer))
 			r.Get("/me", s.getMe)
-			r.Get("/providers", s.listProviders)
-			r.Get("/providers/{name}/readiness", s.getProviderReadiness)
-			r.Get("/providers/{name}/images", s.listProviderImages)
-			r.Get("/providers/{name}/cluster-versions", s.listProviderClusterVersions)
-			r.Get("/providers/{name}/billing-scopes", s.listProviderBillingScopes)
-			r.Get("/clusters", s.listClusters)
-			r.Get("/clusters/{name}", s.getCluster)
-			r.Get("/vms", s.listVMs)
-			r.Get("/vms/{name}", s.getVM)
-			r.Get("/stacks", s.listStacks)
-			r.Get("/stacks/{name}", s.getStack)
-			r.Get("/databases", s.listDatabases)
-			r.Get("/databases/{name}", s.getDatabase)
-			r.Get("/tables", s.listTables)
-			r.Get("/tables/{name}", s.getTable)
-			r.Get("/functions", s.listFunctions)
-			r.Get("/functions/{name}", s.getFunction)
-			r.Get("/s3", s.listS3)
-			r.Get("/s3/{name}", s.getS3)
-			r.Get("/secrets", s.listSecrets)
-			r.Get("/secrets/{name}", s.getSecret)
-			r.Get("/queues", s.listQueues)
-			r.Get("/queues/{name}", s.getQueue)
-			r.Get("/caches", s.listCaches)
-			r.Get("/caches/{name}", s.getCache)
-			r.Get("/projects", s.listProjects)
-			r.Get("/projects/{name}", s.getProject)
-			r.Get("/accounts", s.listAccounts)
-			r.Get("/accounts/{name}", s.getAccount)
-			r.Get("/dns", s.listDNS)
-			r.Get("/dns/{name}", s.getDNS)
-			r.Get("/certs", s.listCert)
-			r.Get("/certs/{name}", s.getCert)
-			r.Get("/loadbalancers", s.listLoadBalancers)
-			r.Get("/loadbalancers/{name}", s.getLoadBalancer)
-			r.Get("/apigateways", s.listAPIGateways)
-			r.Get("/apigateways/{name}", s.getAPIGateway)
-			r.Get("/cdns", s.listCDN)
-			r.Get("/cdns/{name}", s.getCDN)
 			r.Get("/requests", s.listRequests)
 			r.Get("/requests/{name}", s.getRequest)
-			r.Get("/blueprints", s.listBlueprints)
-			r.Get("/environments", s.listEnvironments)
-			r.Get("/environments/{name}", s.getEnvironment)
-			r.Get("/queue", s.listQueue)
-			r.Get("/cost", s.getCost)
-			r.Get("/finops", s.getFinOps)
-			r.Get("/compliance", s.getCompliance)
 			r.Get("/ai/providers", s.listAIProviders)
 			r.Get("/ai/services", s.listAIServices)
 			r.Get("/ai/requests", s.listAIRequests)
@@ -148,48 +89,6 @@ func (s *Server) Routes() http.Handler {
 		// Writes: operator and up.
 		r.Group(func(r chi.Router) {
 			r.Use(auth.RequireRole(auth.RoleOperator))
-			r.Post("/providers", s.createProvider)
-			r.Patch("/providers/{name}", s.updateProvider)
-			r.Delete("/providers/{name}", s.deleteProvider)
-			r.Post("/providers/{name}/check", s.checkProvider)
-			r.Post("/clusters", s.createCluster)
-			r.Post("/clusters/{name}/scale", s.scaleCluster)
-			r.Delete("/clusters/{name}", s.destroyCluster)
-			r.Post("/vms", s.createVM)
-			r.Post("/vms/{name}/scale", s.scaleVM)
-			r.Delete("/vms/{name}", s.destroyVM)
-			r.Post("/stacks", s.createStack)
-			r.Delete("/stacks/{name}", s.destroyStack)
-			r.Post("/databases", s.createDatabase)
-			r.Delete("/databases/{name}", s.destroyDatabase)
-			r.Post("/tables", s.createTable)
-			r.Delete("/tables/{name}", s.destroyTable)
-			r.Post("/functions", s.createFunction)
-			r.Delete("/functions/{name}", s.destroyFunction)
-			r.Post("/s3", s.createS3)
-			r.Delete("/s3/{name}", s.destroyS3)
-			r.Post("/secrets", s.createSecret)
-			r.Delete("/secrets/{name}", s.destroySecret)
-			r.Post("/queues", s.createQueue)
-			r.Delete("/queues/{name}", s.destroyQueue)
-			r.Post("/caches", s.createCache)
-			r.Delete("/caches/{name}", s.destroyCache)
-			r.Post("/projects", s.createProject)
-			r.Post("/projects/{name}/members", s.setProjectMembers)
-			r.Delete("/projects/{name}", s.destroyProject)
-			r.Post("/accounts", s.createAccount)
-			r.Delete("/accounts/{name}", s.destroyAccount)
-			r.Post("/dns", s.createDNS)
-			r.Delete("/dns/{name}", s.destroyDNS)
-			r.Post("/certs", s.createCert)
-			r.Delete("/certs/{name}", s.destroyCert)
-			r.Post("/loadbalancers", s.createLoadBalancer)
-			r.Delete("/loadbalancers/{name}", s.destroyLoadBalancer)
-			r.Post("/apigateways", s.createAPIGateway)
-			r.Delete("/apigateways/{name}", s.destroyAPIGateway)
-			r.Post("/cdns", s.createCDN)
-			r.Delete("/cdns/{name}", s.destroyCDN)
-			r.Post("/entra/grant", s.grantEntra)
 			r.Post("/requests", s.createRequest)
 			r.Post("/requests/{name}/approve", s.approveRequest)
 			r.Post("/requests/{name}/reject", s.rejectRequest)
@@ -244,191 +143,10 @@ func (s *Server) Routes() http.Handler {
 			r.Delete("/ai/admin/{name}/workspaces/{wsID}/spend-alerts/{alertID}", s.deleteAIProjectSpendAlert)
 			r.Post("/ai/gateway/openai/responses", s.gatewayOpenAIResponses)
 			r.Post("/ai/gateway/anthropic/messages", s.gatewayAnthropicMessages)
-			r.Post("/environments", s.createEnvironment)
-			r.Delete("/environments/{name}", s.destroyEnvironment)
 		})
 	})
 
 	return r
-}
-
-func (s *Server) listProviders(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	provs, err := s.svc.ListProviders(ctx)
-	if err != nil {
-		writeErr(w, http.StatusInternalServerError, err)
-		return
-	}
-	// Count clusters per provider name.
-	counts := map[string]int{}
-	if summaries, err := s.svc.ListClusters(ctx); err == nil {
-		for _, c := range summaries {
-			counts[c.Provider]++
-		}
-	}
-	out := make([]providerDTO, 0, len(provs))
-	for _, p := range provs {
-		out = append(out, providerToDTO(p, counts[p.Name]))
-	}
-	writeJSON(w, http.StatusOK, out)
-}
-
-type createProviderReq struct {
-	Name      string         `json:"name"`
-	Type      string         `json:"type"`
-	Config    map[string]any `json:"config"`
-	SecretRef string         `json:"secretRef"`
-}
-
-func (s *Server) createProvider(w http.ResponseWriter, r *http.Request) {
-	var req createProviderReq
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeErr(w, http.StatusBadRequest, err)
-		return
-	}
-	p, err := s.svc.AddProvider(r.Context(), orchestrator.ProviderInput{
-		Name:      req.Name,
-		Type:      req.Type,
-		Config:    req.Config,
-		SecretRef: req.SecretRef,
-	})
-	if err != nil {
-		writeErr(w, http.StatusBadRequest, err)
-		return
-	}
-	writeJSON(w, http.StatusCreated, providerToDTO(p, 0))
-}
-
-func (s *Server) listClusters(w http.ResponseWriter, r *http.Request) {
-	summaries, err := s.svc.ListClusters(r.Context())
-	if err != nil {
-		writeErr(w, http.StatusInternalServerError, err)
-		return
-	}
-	out := make([]clusterDTO, 0, len(summaries))
-	for _, c := range summaries {
-		out = append(out, clusterSummaryToDTO(c))
-	}
-	writeJSON(w, http.StatusOK, out)
-}
-
-func (s *Server) getCluster(w http.ResponseWriter, r *http.Request) {
-	name := chi.URLParam(r, "name")
-	env := r.URL.Query().Get("env")
-	if env == "" {
-		env = "dev"
-	}
-	live := r.URL.Query().Get("live") == "true"
-	d, err := s.svc.ClusterStatus(r.Context(), name, env, live)
-	if err != nil {
-		writeErr(w, http.StatusNotFound, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, clusterDetailToDTO(d))
-}
-
-// destroyCluster tears down a cluster (tofu destroy). The lookup runs
-// synchronously (so a missing cluster returns 404), but the apply itself - which
-// can take many minutes - runs in the background; status flows destroying ->
-// destroyed/failed.
-func (s *Server) destroyCluster(w http.ResponseWriter, r *http.Request) {
-	name := chi.URLParam(r, "name")
-	env := r.URL.Query().Get("env")
-	if env == "" {
-		env = "dev"
-	}
-	if _, err := s.svc.ClusterStatus(r.Context(), name, env, false); err != nil {
-		writeErr(w, http.StatusNotFound, err)
-		return
-	}
-	if r.URL.Query().Get("purge") == "true" {
-		if err := s.svc.DeleteClusterRecord(r.Context(), name, env); err != nil {
-			writeErr(w, http.StatusBadRequest, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, map[string]any{"name": name, "status": "removed"})
-		return
-	}
-	s.svc.DestroyClusterAsync(name, env)
-	writeJSON(w, http.StatusAccepted, map[string]any{"name": name, "status": "destroying"})
-}
-
-type scaleClusterReq struct {
-	Workers int `json:"workers"`
-}
-
-// scaleCluster changes a cluster's worker count and re-provisions (day-2).
-func (s *Server) scaleCluster(w http.ResponseWriter, r *http.Request) {
-	name := chi.URLParam(r, "name")
-	env := r.URL.Query().Get("env")
-	if env == "" {
-		env = "dev"
-	}
-	var req scaleClusterReq
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeErr(w, http.StatusBadRequest, err)
-		return
-	}
-	if err := s.svc.ScaleCluster(r.Context(), name, env, req.Workers); err != nil {
-		writeErr(w, http.StatusBadRequest, err)
-		return
-	}
-	writeJSON(w, http.StatusAccepted, map[string]any{"name": name, "workers": req.Workers, "status": "provisioning"})
-}
-
-type createClusterReq struct {
-	Name        string             `json:"name"`
-	Environment string             `json:"environment"`
-	Provider    string             `json:"provider"`
-	Spec        models.ClusterSpec `json:"spec"`
-	DryRun      bool               `json:"dryRun"`
-}
-
-func (s *Server) createCluster(w http.ResponseWriter, r *http.Request) {
-	var req createClusterReq
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeErr(w, http.StatusBadRequest, err)
-		return
-	}
-	res, err := s.svc.CreateCluster(r.Context(), orchestrator.CreateClusterInput{
-		Name:        req.Name,
-		Environment: req.Environment,
-		Provider:    req.Provider,
-		Spec:        req.Spec,
-		DryRun:      req.DryRun,
-	})
-	if err != nil {
-		writeErr(w, http.StatusBadRequest, err)
-		return
-	}
-	if res.DryRun {
-		summary := ""
-		if res.Preflight != nil {
-			summary = res.Preflight.Summary
-		}
-		writeJSON(w, http.StatusOK, map[string]any{"dryRun": true, "summary": summary})
-		return
-	}
-	writeJSON(w, http.StatusCreated, map[string]any{
-		"id":     res.Cluster.ID.String(),
-		"name":   res.Cluster.Name,
-		"status": res.Cluster.Status,
-		"jobId":  res.JobID.String(),
-	})
-}
-
-// listQueue reports recent River jobs. Returns [] when no queue is wired.
-func (s *Server) listQueue(w http.ResponseWriter, r *http.Request) {
-	if s.queue == nil {
-		writeJSON(w, http.StatusOK, []jobs.JobInfo{})
-		return
-	}
-	list, err := s.queue.ListJobs(r.Context(), 100)
-	if err != nil {
-		writeErr(w, http.StatusInternalServerError, err)
-		return
-	}
-	writeJSON(w, http.StatusOK, list)
 }
 
 // --- helpers ---
@@ -449,8 +167,6 @@ func writeErr(w http.ResponseWriter, status int, err error) {
 	}
 	// Friendly-ify a Postgres unique-violation (a duplicate name+environment, the
 	// most common create error) instead of leaking the raw SQLSTATE 23505 to the UI.
-	// A destroyed resource keeps its row (a tombstone), so reusing its name needs a
-	// Remove first - say so.
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 		status = http.StatusConflict

@@ -3,10 +3,10 @@ package orchestrator
 import (
 	"context"
 
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/auth"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // tenantForCreate returns the tenant to stamp on a newly-created resource. An

@@ -9,13 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/aiproviders"
 	aimock "github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/aiproviders/mock"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/auth"
 	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/db"
-	"github.com/cz8jmh4n7f-bit/opord-ai-demo/internal/providers"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type fakeAIQuerier struct {
@@ -179,7 +178,7 @@ func (f *fakeAIQuerier) CreateAIAuditEvent(_ context.Context, arg db.CreateAIAud
 func newAITestService(q *fakeAIQuerier) *Service {
 	reg := aiproviders.NewRegistry()
 	aimock.Register(reg)
-	svc := New(q, providers.NewRegistry(), nil, nil, BootstrapConfig{})
+	svc := New(q, nil, nil)
 	svc.SetAIProviders(reg)
 	return svc
 }
@@ -394,7 +393,7 @@ func TestGatewayOpenAIResponsesRecordsUsageWithoutPromptLeak(t *testing.T) {
 	}))
 	defer openai.Close()
 	q.provider.Config = []byte(`{"base_url":"` + openai.URL + `"}`)
-	svc := New(q, providers.NewRegistry(), fakeAISecretReader{"opord/ai/openai-main": {"api_key": "sk-test"}}, nil, BootstrapConfig{})
+	svc := New(q, fakeAISecretReader{"opord/ai/openai-main": {"api_key": "sk-test"}}, nil)
 
 	res, err := svc.GatewayOpenAIResponses(context.Background(), "openai-main", []byte(`{"model":"gpt-test","input":"secret prompt"}`))
 	if err != nil {
