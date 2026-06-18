@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Plus } from "lucide-react";
-import { LogoMark } from "@/components/logo";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { isActive, navItems, navSections } from "@/components/layout/nav";
@@ -25,9 +24,6 @@ export function Topbar() {
     <header className="sticky top-0 z-20 flex h-11 items-center justify-between gap-4 border-b border-border bg-background px-4 md:px-6">
       <div className="flex min-w-0 items-center gap-3">
         <MobileNav />
-        <Link href="/ai/overview" aria-label="OPORD home" className="shrink-0 text-foreground">
-          <LogoMark className="h-5" />
-        </Link>
         <nav aria-label="Breadcrumb" className="hidden min-w-0 items-center gap-2 text-[13px] md:flex">
           <span className="text-muted-foreground">{section}</span>
           {page && (
