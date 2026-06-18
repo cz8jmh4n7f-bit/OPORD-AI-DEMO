@@ -64,3 +64,6 @@ AGENTS.md
 
 # --- macOS/iCloud conflict copies ("name 2.ext") ---
 * [0-9].*
+
+# Large raster logo - use logo.svg instead
+logo.png
