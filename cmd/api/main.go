@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -70,6 +71,16 @@ func run() error {
 	srv := api.NewServer(svc, logger)
 	srv.SetAuth(svc.ResolveAPIKey, cfg.AuthEnabled)
 	logger.Info("auth", "enabled", cfg.AuthEnabled)
+
+	// First-run bootstrap: with auth enabled and no users yet, mint an admin key
+	// and print it ONCE so the operator can sign in without building a CLI.
+	if cfg.AuthEnabled {
+		if key, err := svc.EnsureInitialAdmin(context.Background()); err != nil {
+			logger.Warn("initial admin bootstrap failed", "err", err)
+		} else if key != "" {
+			fmt.Printf("\nOPORD INITIAL ADMIN KEY: %s  (printed once, save it)\n\n", key)
+		}
+	}
 
 	httpServer := &http.Server{
 		Addr:              cfg.HTTPAddr,

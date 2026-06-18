@@ -98,3 +98,29 @@ func (s *Service) ResolveAPIKey(ctx context.Context, apiKeyHash string) (auth.Id
 	}
 	return id, true
 }
+
+// EnsureInitialAdmin bootstraps a first admin when auth is enabled and the users
+// table is empty: it ensures a "default" tenant, creates an admin user with a
+// fresh API key, and returns the plaintext key for the caller to print ONCE.
+// It returns "" (no key) when users already exist, so the key is never reprinted.
+// This removes the need to build the CLI just to create the first user.
+func (s *Service) EnsureInitialAdmin(ctx context.Context) (string, error) {
+	users, err := s.q.ListUsers(ctx)
+	if err != nil {
+		return "", fmt.Errorf("checking for existing users: %w", err)
+	}
+	if len(users) > 0 {
+		return "", nil // already bootstrapped
+	}
+	const tenant = "default"
+	if _, err := s.q.GetTenantByName(ctx, tenant); err != nil {
+		if _, terr := s.q.CreateTenant(ctx, tenant); terr != nil {
+			return "", fmt.Errorf("creating default tenant: %w", terr)
+		}
+	}
+	_, plain, err := s.CreateUser(ctx, "admin@opord.local", tenant, "admin")
+	if err != nil {
+		return "", err
+	}
+	return plain, nil
+}
