@@ -35,7 +35,7 @@ export function StatCard({
       </div>
       <div
         className={cn(
-          "mt-3 text-[28px] font-semibold leading-none tabular-nums",
+          "mt-3 text-[36px] font-semibold leading-none tabular-nums",
           zero ? "text-muted-foreground" : "text-foreground",
         )}
       >

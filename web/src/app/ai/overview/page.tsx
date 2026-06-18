@@ -77,7 +77,7 @@ export default async function AIOverviewPage() {
           <span className={cellLabel}>Tracked spend</span>
           <div
             className={cn(
-              "mt-3 text-[34px] font-semibold leading-none tabular-nums",
+              "mt-3 text-[36px] font-semibold leading-none tabular-nums",
               spend === 0 ? "text-muted-foreground" : "text-foreground",
             )}
           >
@@ -98,7 +98,7 @@ export default async function AIOverviewPage() {
           <span className={cellLabel}>AI providers</span>
           <div
             className={cn(
-              "mt-3 text-[28px] font-semibold leading-none tabular-nums",
+              "mt-3 text-[36px] font-semibold leading-none tabular-nums",
               providers.length === 0 ? "text-muted-foreground" : "text-foreground",
             )}
           >
@@ -111,7 +111,7 @@ export default async function AIOverviewPage() {
           <span className={cellLabel}>Pending requests</span>
           <div
             className={cn(
-              "mt-3 text-[28px] font-semibold leading-none tabular-nums",
+              "mt-3 text-[36px] font-semibold leading-none tabular-nums",
               pending === 0 ? "text-muted-foreground" : "text-foreground",
             )}
           >

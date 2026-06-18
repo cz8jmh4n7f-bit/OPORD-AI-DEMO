@@ -29,7 +29,7 @@ export default async function AICatalogPage() {
             <section key={group.providerName} className="space-y-2">
               <div className="flex items-center gap-2 px-1">
                 <h2 className="text-[13px] font-medium text-foreground">{group.providerName}</h2>
-                <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[11px] text-faint">
+                <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[12px] text-faint">
                   {group.providerType}
                 </span>
                 <span className="text-xs text-faint">
@@ -44,7 +44,7 @@ export default async function AICatalogPage() {
                     className="flex items-start justify-between gap-4 px-4 py-3.5 transition-colors hover:bg-surface-3"
                   >
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-[13px] font-medium text-foreground">{service.name}</h3>
+                      <h3 className="text-[14px] font-medium text-foreground">{service.name}</h3>
                       <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground">{service.description}</p>
                       <div className="mt-2 flex flex-wrap items-center gap-1.5">
                         <Tag>{service.category}</Tag>
@@ -70,7 +70,7 @@ export default async function AICatalogPage() {
 // Tag — a tiny monospace, bordered label (not a colored pill).
 function Tag({ children }: { children: React.ReactNode }) {
   return (
-    <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+    <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[12px] text-muted-foreground">
       {children}
     </span>
   );
